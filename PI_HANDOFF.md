@@ -6,7 +6,7 @@
 
 ## 完成了什么
 
-- **识别上游治理（本轮）**：定位并修复整张报告识别 25s 超时——根因是 `deepseek-v4-flash` 为推理模型，默认先生成超长思维链（复杂固定 schema 下 >90s），撞上备上游超时预算；修复为请求体显式 `thinking: {type:"disabled"}`（实测全文约 5–7s 完成）。随后将主备上游对调：**主上游 = 直连 DeepSeek（DEEPSEEK_*），备上游 = OpenCode Go（OPENCODE_GO_*，仅在 DeepSeek 额度类失败时回退）**；编排层泛化（上游标签取自 config.name），超时预算随之调整（主 25s / 备 20s）。opencode-go 当前每周额度已用尽（429 `GoUsageLimitError`，约 4 天后重置），但不再影响识别（DeepSeek 直连兜底）。
+- **识别上游治理（本轮）**：定位并修复整张报告识别 25s 超时——根因是 `deepseek-v4-flash` 为推理模型，默认先生成超长思维链（复杂固定 schema 下 >90s），撞上备上游超时预算；修复为请求体显式 `thinking: {type:"disabled"}`（实测全文约 5–7s 完成）。随后将主备上游对调：**主上游 = 直连 DeepSeek（`DEEPSEEK_*`），备上游 = OpenCode Go（`OPENCODE_GO_*`，仅在 DeepSeek 额度类失败时回退）**；编排层泛化（上游标签取自 config.name），超时预算随之调整（主 25s / 备 20s）。opencode-go 当前每周额度已用尽（429 `GoUsageLimitError`，约 4 天后重置），但不再影响识别（DeepSeek 直连兜底）。
 
 - **整张报告扫描（report 模式）**：识别流程新增「识别整张报告」路径——`src/shared/recognizeProtocol.ts` 的 `RecognizeMode` 含 `'report'`；`src/shared/structurePrompt.ts` 提供 `REPORT_STRUCTURE_SYSTEM_PROMPT`，一次结构化返回报告信息候选（医院/报告日期/报告类型/标题/备注）与检查项目候选，全部待确认、成员必须由用户选择、点击「创建报告并添加已选项目」后才填入表单。`ReportRecognitionPanel.tsx` 承载该 UI。
 - **OCR 原样保留与显示清理**：识别项目名 `originalName` 逐字保留原文（`Al`/`A1`/`AI`/`HbA1c` 等绝不静默纠正/合并）；仅另生成低风险清理后的「识别名称」（去首尾空白、折叠空白、去不可见控制字符，不删中文内部空格），由 `src/utils/ocrPreprocess.ts`、`src/utils/ocrCandidate.ts`、`src/utils/displayName.ts` 实现，清理只用于显示，不改存储原文。

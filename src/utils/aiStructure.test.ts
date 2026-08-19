@@ -559,9 +559,12 @@ describe('STRUCTURE_SYSTEM_PROMPT / REPORT_STRUCTURE_SYSTEM_PROMPT（极简服�
     expect(STRUCTURE_SYSTEM_PROMPT).not.toContain('别名');
   });
 
-  it('提示词含「sourceText 必须逐字匹配输入」的强约束与 Al/A1 不改写约束', () => {
+  it('提示词含「sourceText 逐字匹配」与「1/l 混淆取 1、A1 不改写 AI」约束', () => {
     expect(STRUCTURE_SYSTEM_PROMPT).toContain('逐字');
-    expect(STRUCTURE_SYSTEM_PROMPT).toContain('Al');
+    expect(STRUCTURE_SYSTEM_PROMPT).toContain('Al→A1');
+    expect(STRUCTURE_SYSTEM_PROMPT).toContain('A1 不得改成 AI');
+    expect(REPORT_STRUCTURE_SYSTEM_PROMPT).toContain('Al→A1');
+    expect(REPORT_STRUCTURE_SYSTEM_PROMPT).toContain('A1 不得改成 AI');
   });
 
   it('整张报告提示词：报告信息候选字段 + 严格报告类型选项 + 无标签上下文', () => {
