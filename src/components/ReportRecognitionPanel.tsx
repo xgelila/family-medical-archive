@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { AttachmentRecord } from '../types';
+import type { AttachmentRecord, ReportDetail } from '../types';
 import { REPORT_TYPES } from '../types';
 import { ImageCropModal, type CroppedImage } from './ImageCropModal';
 import { ocrStatusText, type OcrProgress } from '../utils/ocr';
@@ -162,6 +162,38 @@ const REPORT_EXTRA_LABELS: ReadonlyArray<[keyof AiReportFields, string]> = [
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
+/** 把识别出的附加信息（表单未覆盖的 report 字段 + extraFields/notes/unresolvedText）整理为 KV 元数据列表。 */
+function buildReportDetails(
+  report: AiReportFields | null,
+  extras: {
+    extraFields: AiStructuredExtraField[];
+    notes: AiStructuredNote[];
+    unresolvedText: string;
+  },
+): ReportDetail[] {
+  const out: ReportDetail[] = [];
+  if (report) {
+    for (const [key, label] of REPORT_EXTRA_LABELS) {
+      const v = (report[key] ?? '').trim();
+      if (v !== '') out.push({ label, value: v });
+    }
+  }
+  for (const f of extras.extraFields) {
+    const v = f.value.trim();
+    if (v === '') continue;
+    const section = f.section === 'header' ? '页眉' : f.section === 'footer' ? '页脚' : '附加';
+    out.push({ label: f.key.trim() !== '' ? `${section}·${f.key.trim()}` : section, value: v });
+  }
+  for (const n of extras.notes) {
+    const v = n.text.trim();
+    if (v !== '') out.push({ label: '备注', value: v });
+  }
+  if (extras.unresolvedText.trim() !== '') {
+    out.push({ label: '未识别原文', value: extras.unresolvedText.trim() });
+  }
+  return out;
+}
+
 export function ReportRecognitionPanel({
   attachments,
   onImport,
@@ -171,7 +203,11 @@ export function ReportRecognitionPanel({
 }: {
   attachments: AttachmentRecord[];
   onImport: (candidates: OcrCandidate[]) => void;
-  onReportScan?: (scan: { report: ReportScanMeta; items: OcrCandidate[] }) => void;
+  onReportScan?: (scan: {
+    report: ReportScanMeta;
+    details: ReportDetail[];
+    items: OcrCandidate[];
+  }) => void;
   memberSelected?: boolean;
   initialReportMeta?: ReportScanMeta;
 }) {
@@ -431,6 +467,11 @@ export function ReportRecognitionPanel({
         title: reportMeta.title.trim(),
         notes: reportMeta.notes.trim(),
       },
+      details: buildReportDetails(scanExtras.report, {
+        extraFields: scanExtras.extraFields,
+        notes: scanExtras.notes,
+        unresolvedText: scanExtras.unresolvedText,
+      }),
       items: rows.map(rowToCandidate),
     });
     const count = rows.length;

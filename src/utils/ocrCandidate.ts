@@ -1,5 +1,5 @@
 import type { ItemDraft } from './labels';
-import type { LabelRecommendationStatus } from '../types';
+import type { LabelRecommendationStatus, ReportDetail } from '../types';
 
 /**
  * OCR / AI 候选项的共享数据类型与转换（纯函数，可单测）。
@@ -67,9 +67,10 @@ export interface ReportScanMeta {
   notes: string;
 }
 
-/** 整张报告识别结果（报告信息候选 + 项目候选） */
+/** 整张报告识别结果（报告信息候选 + 附加元数据 + 项目候选） */
 export interface ReportScanResult {
   report: ReportScanMeta;
+  details: ReportDetail[];
   items: OcrCandidate[];
 }
 

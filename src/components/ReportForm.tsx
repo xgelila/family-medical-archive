@@ -8,6 +8,7 @@ import {
   type AttachmentKind,
   type Member,
   type Report,
+  type ReportDetail,
   type ReportItem,
 } from '../types';
 import {
@@ -28,11 +29,13 @@ export function ReportForm({
   members,
   editingReport,
   initialMemberId,
+  initialFiles,
   onDone,
 }: {
   members: Member[];
   editingReport: Report | null;
   initialMemberId: string;
+  initialFiles?: File[];
   onDone: (saved: boolean) => void;
 }) {
   const [memberId, setMemberId] = useState(editingReport?.memberId ?? initialMemberId);
@@ -41,11 +44,13 @@ export function ReportForm({
   const [reportType, setReportType] = useState(editingReport?.reportType ?? '');
   const [title, setTitle] = useState(editingReport?.title ?? '');
   const [notes, setNotes] = useState(editingReport?.notes ?? '');
+  const [details, setDetails] = useState<ReportDetail[]>(editingReport?.details ?? []);
   const [items, setItems] = useState<ItemDraft[]>([]);
   const [allConfirmed, setAllConfirmed] = useState(true);
   const [newAttachments, setNewAttachments] = useState<AttachmentRecord[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
   const [showRecognition, setShowRecognition] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const recognitionRef = useRef<HTMLDivElement>(null);
@@ -138,6 +143,16 @@ export function ReportForm({
     if (fileRef.current) fileRef.current.value = '';
   };
 
+  // 从「新建入口」选择的文件在挂载时写入附件；图片会触发「识别数据」面板自动展开。
+  const initialFilesHandled = useRef(false);
+  useEffect(() => {
+    if (initialFilesHandled.current) return;
+    initialFilesHandled.current = true;
+    if (!initialFiles || initialFiles.length === 0) return;
+    for (const f of initialFiles) void addFile(f);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const setItem = (i: number, patch: Partial<ItemDraft>) =>
     setItems((list) => list.map((it, idx) => (idx === i ? { ...it, ...patch } : it)));
 
@@ -161,6 +176,9 @@ export function ReportForm({
         reportType: reportType.trim(),
         title: title.trim(),
         notes: notes.trim(),
+        details: details
+          .filter((d) => d.value.trim() !== '')
+          .map((d) => ({ label: d.label.trim() || '附加信息', value: d.value.trim() })),
         attachmentIds: newAttachments.map((a) => a.id),
         createdAt: editingReport?.createdAt ?? ts,
         updatedAt: ts,
@@ -262,6 +280,61 @@ export function ReportForm({
         </Field>
       </div>
 
+      <div className="details-section">
+        <button type="button" className="details-toggle" onClick={() => setDetailsOpen((v) => !v)}>
+          <span>报告详情（送检医生 / 检验者 / 审核者 / 采样日期等附加信息）</span>
+          <span className="dim">
+            {details.length > 0 ? `${details.length} 项` : '选填'} {detailsOpen ? '▴' : '▾'}
+          </span>
+        </button>
+        {detailsOpen && (
+          <div className="details-editor">
+            {details.length === 0 && (
+              <div className="dim">暂无附加信息；识别报告后会自动填入，也可手动添加。</div>
+            )}
+            {details.map((d, i) => (
+              <div key={i} className="details-row">
+                <input
+                  className="details-label"
+                  value={d.label}
+                  placeholder="名称（如 送检医生）"
+                  onChange={(e) =>
+                    setDetails((list) =>
+                      list.map((x, idx) => (idx === i ? { ...x, label: e.target.value } : x)),
+                    )
+                  }
+                />
+                <input
+                  className="details-value"
+                  value={d.value}
+                  placeholder="值"
+                  onChange={(e) =>
+                    setDetails((list) =>
+                      list.map((x, idx) => (idx === i ? { ...x, value: e.target.value } : x)),
+                    )
+                  }
+                />
+                <button
+                  type="button"
+                  className="btn btn-sm btn-ghost"
+                  aria-label="删除该行"
+                  onClick={() => setDetails((list) => list.filter((_, idx) => idx !== i))}
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              className="btn btn-sm"
+              onClick={() => setDetails((list) => [...list, { label: '', value: '' }])}
+            >
+              + 添加一行
+            </button>
+          </div>
+        )}
+      </div>
+
       <div className="att-section">
         <div className="att-head">
           <strong>原始附件（图片 / PDF）</strong>
@@ -322,6 +395,7 @@ export function ReportForm({
                     if (reportType === '') setReportType(scan.report.reportType);
                     if (title.trim() === '') setTitle(scan.report.title);
                     if (notes.trim() === '') setNotes(scan.report.notes);
+                    if (details.length === 0) setDetails(scan.details);
                     setItems((list) => [...list, ...scan.items.map(ocrCandidateToDraft)]);
                     setAllConfirmed(false);
                   }

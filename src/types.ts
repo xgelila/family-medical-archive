@@ -48,6 +48,12 @@ export interface ReportItem {
   updatedAt: number;
 }
 
+/** 报告附加元数据（识别出的非核心字段，如送检医生/检验者/审核者/采样日期等，KV 形式保留展示） */
+export interface ReportDetail {
+  label: string;
+  value: string;
+}
+
 export interface Report {
   id: string;
   memberId: string;
@@ -56,6 +62,8 @@ export interface Report {
   reportType: string; // 体检类型
   title: string;
   notes: string;
+  /** 附加元数据（送检医生/检验者/审核者/采样/接收/打印日期/临床诊断/检验目的等），可选，向后兼容 */
+  details?: ReportDetail[];
   attachmentIds: string[];
   createdAt: number;
   updatedAt: number;

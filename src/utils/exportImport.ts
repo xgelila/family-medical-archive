@@ -147,6 +147,11 @@ export async function buildCleanImport(payload: ExportPayload): Promise<CleanImp
       reportType: typeof r.reportType === 'string' ? r.reportType : '',
       title: typeof r.title === 'string' ? r.title : '',
       notes: typeof r.notes === 'string' ? r.notes : '',
+      details: Array.isArray(r.details)
+        ? r.details
+            .filter((d) => d && typeof d.label === 'string' && typeof d.value === 'string')
+            .map((d) => ({ label: d.label, value: d.value }))
+        : undefined,
       attachmentIds: [], // 附件清洗完成后按引用重建
       createdAt: typeof r.createdAt === 'number' ? r.createdAt : Date.now(),
       updatedAt: typeof r.updatedAt === 'number' ? r.updatedAt : Date.now(),
