@@ -1,0 +1,23 @@
+{
+  "name": "家庭体检档案",
+  "short_name": "体检档案",
+  "description": "本地优先的家庭体检档案：无需账号、数据仅存本机（IndexedDB），仅供参考，不构成医疗诊断或治疗建议。",
+  "lang": "zh-CN",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#f1f5f9",
+  "theme_color": "#0d9488",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

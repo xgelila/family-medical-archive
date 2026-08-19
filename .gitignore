@@ -1,0 +1,14 @@
+node_modules
+dist
+*.local
+.DS_Store
+npm-debug.log*
+
+# 环境变量：OPENCODE_GO_*（含旧 VITE_OPENCODE_GO_*）密钥仅由本机开发代理（Node 侧）读取，
+# 不注入浏览器/构建产物。由于 .env.local 中可能仍存在旧 VITE_ 变量行，统一忽略全部 .env*。
+# 仅保留 .env.example 作为模板，.env.local / 其他 .env* 一律忽略。
+.env
+.env.*
+!.env.example
+# TypeScript 增量构建缓存
+*.tsbuildinfo
