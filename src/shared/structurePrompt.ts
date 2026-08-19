@@ -48,9 +48,10 @@ export const STRUCTURE_SYSTEM_PROMPT = `从文字中识别出检查单的所有�
 ${FIXED_SCHEMA_JSON}
 
 字段说明：
-- report 与 items 的字段值保持原文用字（如 A1 不得改成 AI），缺失一律填空字符串 ""；
-- items 是检查项目列表：name=项目名（数字 1 与字母 l 混淆时按医学惯例取 1，如 Al→A1、Alc→A1c）、result=结果值原文（数值或定性，如 "5.6"、"阴性"；含 < > ≤ ≥ 前缀时保留）、
-  referenceRange=参考区间、unit=单位、method=检验方法（缺失填空）、sourceText=该项目来源的原文片段（须与输入逐字一致）；
+- report 与 items 的字段值缺失一律填空字符串 ""；
+- items 是检查项目列表：name=项目名（结合医学常识识别正确名称，纠正 OCR 明显的识别错误）、
+  result=结果值原文（数值或定性，如 "5.6"、"阴性"；含 < > ≤ ≥ 前缀时保留）、
+  referenceRange=参考区间、unit=单位、method=检验方法（缺失填空）、sourceText=该项目来源的原文片段（须与输入逐字一致，用于溯源，不得改动）；
 - report 为报告头部信息候选（医院/编号/姓名/日期/送检医生等），无法判断的字段填空 ""；
 - 无法归入 report/items 的其它信息（如页眉页脚、机构地址、非项目备注）放到 extraFields 或 notes；
 - unresolvedText 放无法可靠对应到任何结构项的原文行（多行用换行分隔），不要猜测、不要丢弃。`;
@@ -71,8 +72,8 @@ ${FIXED_SCHEMA_JSON}
   reportNo=报告编号、personName=姓名、gender=性别、age=年龄、patientId=病历号、clinicalDiagnosis=临床诊断、
   testPurpose=检验目的、reportDate=报告日期(YYYY-MM-DD)、reportType=报告类型、title=标题、sampleDate=采样日期、receiveDate=接收日期、
   printDate=打印日期、senderDoctor=送检医生、inspector=检验者、reviewer=审核者；无法可靠判断的字段填空 ""（禁止猜测性补全）；
-- items 是检查项目列表：name=项目名（数字 1 与字母 l 混淆时按医学惯例取 1，如 Al→A1、Alc→A1c；其余保持原文用字，A1 不得改成 AI）、result=结果值原文（数值或定性，含 < > ≤ ≥ 前缀时保留）、
-  referenceRange=参考区间、unit=单位、method=检验方法（缺失填空）、sourceText=该项目来源的原文片段（须与输入逐字一致）；
+- items 是检查项目列表：name=项目名（结合医学常识识别正确名称，纠正 OCR 明显的识别错误）、result=结果值原文（数值或定性，含 < > ≤ ≥ 前缀时保留）、
+  referenceRange=参考区间、unit=单位、method=检验方法（缺失填空）、sourceText=该项目来源的原文片段（须与输入逐字一致，用于溯源，不得改动）；
 - 无法归入 report/items 的其它信息放到 extraFields 或 notes；
 - unresolvedText 放无法可靠对应到任何结构项的原文行（多行用换行分隔），不要猜测、不要丢弃。`;
 
