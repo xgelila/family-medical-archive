@@ -24,14 +24,12 @@ export interface TrendPoint {
   rawValue: string; // 原始录入文本（不归一化）
   numeric: number | null; // 可解析数值，用于同曲线主键连线
   unit: string; // '' = 缺失
-  standardLabel: string; // 标准标签（仅展示兼容，不参与分组）
   originalName: string; // 报告原文项目名（曲线身份主键核心字段）
   refRange: string;
   confirmed: boolean;
 }
 
 export interface TrendSeries {
-  standardLabel: string; // 该系列某条目的标准标签（仅展示兼容）
   unit: string; // '' = 该组单位缺失
   curveKey: string; // 曲线身份主键（name+resultKind+unit）
   originalName: string; // 该系列对应的原始项目名（曲线主键核心）
@@ -49,11 +47,6 @@ export function parseNumeric(raw: string): number | null {
   if (t === '' || t === '-' || t === '—') return null;
   const n = Number(t);
   return Number.isFinite(n) ? n : null;
-}
-
-/** 标准标签规范化：空串/缺省一律视为「未设置」（仅展示用，不参与分组）。 */
-export function normStandardLabel(it: ReportItem): string {
-  return (it.standardLabel ?? '').trim();
 }
 
 /**
@@ -95,7 +88,6 @@ export function buildTrendPoint(it: ReportItem, report: Report | undefined): Tre
     rawValue: it.value,
     numeric: parseNumeric(it.value),
     unit: (it.unit ?? '').trim(),
-    standardLabel: normStandardLabel(it),
     originalName: (it.name ?? '').trim(),
     refRange: it.refRange ?? '',
     confirmed: it.confirmed,
@@ -130,7 +122,6 @@ export function analyzeTrend(items: ReportItem[], reportsById: Map<string, Repor
     .map(([key, pts]) => {
       const parts = parseCurveKey(key);
       return {
-        standardLabel: pts[0]?.standardLabel ?? '',
         unit: parts.unit,
         curveKey: key,
         originalName: parts.originalName,

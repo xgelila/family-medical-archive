@@ -25,7 +25,6 @@ function item(
   unit: string,
   resultKind: ReportItem['resultKind'] = 'numeric',
   confirmed = true,
-  standardLabel: string | undefined = undefined,
 ): ReportItem {
   return {
     id,
@@ -39,7 +38,6 @@ function item(
     refRange: '',
     notes: '',
     confirmed,
-    standardLabel,
     createdAt: 0,
     updatedAt: 0,
   };
@@ -79,11 +77,11 @@ describe('analyzeTrend 按检查项名称分组（不再依赖标准标签）', 
     }
   });
 
-  it('不同名称（糖化血红蛋白Al / 糖化血红蛋白Alc）即使同标签同单位也拆成两条独立曲线，绝不合并', () => {
+  it('不同名称（糖化血红蛋白Al / 糖化血红蛋白Alc）同单位也拆成两条独立曲线，绝不合并', () => {
     const r = analyzeTrend(
       [
-        item('r1', 'i1', '糖化血红蛋白Al', '5.4', '%', 'numeric', true, '糖化血红蛋白'),
-        item('r2', 'i2', '糖化血红蛋白Alc', '6.2', '%', 'numeric', true, '糖化血红蛋白'),
+        item('r1', 'i1', '糖化血红蛋白Al', '5.4', '%', 'numeric', true),
+        item('r2', 'i2', '糖化血红蛋白Alc', '6.2', '%', 'numeric', true),
       ],
       reports,
     );
@@ -97,12 +95,11 @@ describe('analyzeTrend 按检查项名称分组（不再依赖标准标签）', 
     }
   });
 
-  it('同标签旧数据但名称不同 → 不合并不同 name（两条曲线）', () => {
-    // 两个名称都被标为同一 standardLabel，但按名称分组必须拆开
+  it('名称不同（血红蛋白 / HGB）→ 不合并，拆成两条曲线', () => {
     const r = analyzeTrend(
       [
-        item('r1', 'i1', '血红蛋白', '145', 'g/L', 'numeric', true, '血红蛋白'),
-        item('r2', 'i2', 'HGB', '152', 'g/L', 'numeric', true, '血红蛋白'),
+        item('r1', 'i1', '血红蛋白', '145', 'g/L', 'numeric', true),
+        item('r2', 'i2', 'HGB', '152', 'g/L', 'numeric', true),
       ],
       reports,
     );
@@ -207,20 +204,20 @@ describe('analyzeTrend 待确认规则（confirmed=false 不参与统计/连线�
   });
 });
 
-describe('buildCurveKey 曲线主键（名称 + 结果类型 + 单位，不含标准标签）', () => {
-  it('主键只由 名称 + resultKind + unit 组成；同标签不同名称 → 主键不同（不合并）', () => {
-    const a = item('r1', 'i1', '糖化血红蛋白Al', '5.4', '%', 'numeric', true, '糖化血红蛋白');
-    const b = item('r2', 'i2', '糖化血红蛋白Alc', '6.2', '%', 'numeric', true, '糖化血红蛋白');
-    const c = item('r3', 'i3', '糖化血红蛋白Al', '5.5', '%', 'numeric', true, '糖化血红蛋白');
+describe('buildCurveKey 曲线主键（名称 + 结果类型 + 单位）', () => {
+  it('主键只由 名称 + resultKind + unit 组成；不同名称 → 主键不同（不合并）', () => {
+    const a = item('r1', 'i1', '糖化血红蛋白Al', '5.4', '%', 'numeric', true);
+    const b = item('r2', 'i2', '糖化血红蛋白Alc', '6.2', '%', 'numeric', true);
+    const c = item('r3', 'i3', '糖化血红蛋白Al', '5.5', '%', 'numeric', true);
     // 名称不同 → 主键不同（不合并）
     expect(buildCurveKey(a)).not.toBe(buildCurveKey(b));
     // 名称相同（仅内容/日期不同）→ 主键相同（合并）
     expect(buildCurveKey(a)).toBe(buildCurveKey(c));
   });
 
-  it('同一名称同单位不同标签 → 主键相同（按名称分组，标签不影响分组）', () => {
-    const a = item('r1', 'i1', '身高', '175', 'cm', 'numeric', true, '身高');
-    const b = item('r2', 'i2', '身高', '176', 'cm', 'numeric', true, '另一标签');
+  it('同一名称同单位 → 主键相同（合并为一条曲线）', () => {
+    const a = item('r1', 'i1', '身高', '175', 'cm', 'numeric', true);
+    const b = item('r2', 'i2', '身高', '176', 'cm', 'numeric', true);
     expect(buildCurveKey(a)).toBe(buildCurveKey(b));
   });
 });
