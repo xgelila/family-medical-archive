@@ -114,7 +114,7 @@ describe('「识别数据」黑盒流程与纯本地裁剪（源级约束）', (
     const visible = stripComments(panel);
     // 主流程 = 「识别调试」折叠面板之前的部分，必须保持黑盒（不暴露 OCR/AI/模型/密钥/上游）
     const mainFlow = visible.split('{debugInfo.ran && (')[0];
-    expect(mainFlow).toContain('识别数据');
+    expect(mainFlow).toContain('识别整张报告');
     expect(mainFlow).toContain('添加到报告');
     expect(mainFlow).not.toMatch(/fetch\(['"]https?:\/\//);
     expect(mainFlow).not.toContain('import.meta.env');

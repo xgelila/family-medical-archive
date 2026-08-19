@@ -389,13 +389,16 @@ export function ReportForm({
               editingReport
                 ? undefined /* 已有报告内识别走原流程；整张报告识别仅用于新建报告 */
                 : (scan) => {
-                    // 只在用户尚未填写时用识别候选填充；已手填的字段不被候选覆盖
-                    if (hospital.trim() === '') setHospital(scan.report.hospital);
-                    if (reportDate === '') setReportDate(scan.report.reportDate);
-                    if (reportType === '') setReportType(scan.report.reportType);
-                    if (title.trim() === '') setTitle(scan.report.title);
-                    if (notes.trim() === '') setNotes(scan.report.notes);
-                    if (details.length === 0) setDetails(scan.details);
+                    // 新建报告：识别结果作为主来源，非空即覆盖默认值（用户之后仍可改）
+                    if (scan.report.hospital) setHospital(scan.report.hospital);
+                    if (scan.report.reportDate) setReportDate(scan.report.reportDate);
+                    if (scan.report.reportType) setReportType(scan.report.reportType);
+                    if (scan.report.title) setTitle(scan.report.title);
+                    if (scan.report.notes) setNotes(scan.report.notes);
+                    if (scan.details.length > 0) {
+                      setDetails(scan.details);
+                      setDetailsOpen(true);
+                    }
                     setItems((list) => [...list, ...scan.items.map(ocrCandidateToDraft)]);
                     setAllConfirmed(false);
                   }
@@ -405,10 +408,7 @@ export function ReportForm({
       </div>
 
       <p className="recog-note" role="note">
-        识别结果需人工核对后确认；识别出的项目均为待确认、不会自动设置标准标签，也不会自动进入
-        趋势。新建报告时可
-        「识别整张报告」一次取得报告信息与项目候选（全部待确认，点击「创建报告并添加已选项目」后才填入表单）。
-        PDF 附件暂不支持自动识别，请上传报告图片或手动添加检查项目。
+        识别结果需人工核对后确认。
       </p>
 
       {/* 甲功常用项目快速添加：仅当报告类型精确为「甲状腺功能」时出现；可选、非强制 */}

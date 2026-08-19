@@ -221,7 +221,8 @@ export function ReportRecognitionPanel({
   }, [images]);
 
   const [phase, setPhase] = useState<Phase>('idle');
-  const [mode, setMode] = useState<Mode>('items');
+  // 新建报告默认走「整张报告」模式（一次拿到报告信息 + 项目）；编辑旧报告无 onReportScan，仅识别项目。
+  const [mode, setMode] = useState<Mode>(onReportScan ? 'report' : 'items');
   const [progress, setProgress] = useState<OcrProgress | null>(null);
   const [error, setError] = useState('');
   const [rows, setRows] = useState<DraftRow[]>([]);
@@ -522,28 +523,24 @@ export function ReportRecognitionPanel({
             </label>
           )}
           <div className="btn-row recog-main-row">
-            <button
-              type="button"
-              className="btn btn-primary recog-main-btn"
-              onClick={() => openCrop('items')}
-            >
-              📷 识别数据
-            </button>
             {reportModeAvailable && (
               <button
                 type="button"
-                className="btn recog-main-btn"
+                className="btn btn-primary recog-main-btn"
                 disabled={!memberSelected}
                 title={
                   memberSelected
-                    ? '识别整张报告：一次返回报告信息候选与检查项目候选（全部待确认）'
+                    ? '识别整张报告：一次返回报告信息与检查项目（全部待确认）'
                     : '请先在上方选择成员，再识别整张报告。'
                 }
                 onClick={() => openCrop('report')}
               >
-                🧾 识别整张报告（含报告信息）
+                🧾 识别整张报告
               </button>
             )}
+            <button type="button" className="btn recog-main-btn" onClick={() => openCrop('items')}>
+              📷 仅识别检查项目
+            </button>
           </div>
           {reportModeAvailable && !memberSelected && (
             <span className="recog-hint">
