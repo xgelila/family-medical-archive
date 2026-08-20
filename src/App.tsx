@@ -4,8 +4,8 @@ import type { Member, Report } from './types';
 import { Disclaimer } from './components/Kit';
 import { MemberManager } from './components/MemberManager';
 import { ReportManager } from './components/ReportManager';
-import { ReportForm } from './components/ReportForm';
-import { NewReportEntry } from './components/NewReportEntry';
+import { NewReportWizard } from './components/NewReportWizard';
+import { ReportReview } from './components/ReportReview';
 import { TrendView } from './components/TrendView';
 import { DataManager } from './components/DataManager';
 import { PrivacyModal } from './components/PrivacyModal';
@@ -29,8 +29,6 @@ export default function App() {
   // 报告编辑状态（编辑时占据整个报告视图）
   const [editingReport, setEditingReport] = useState<Report | null>(null);
   const [creatingReport, setCreatingReport] = useState(false);
-  const [newReportStage, setNewReportStage] = useState<'entry' | 'form'>('entry');
-  const [initialFiles, setInitialFiles] = useState<File[]>([]);
 
   const [members, setMembers] = useState<Member[]>([]);
   const [stats, setStats] = useState<{
@@ -68,8 +66,6 @@ export default function App() {
   const closeForm = (saved: boolean) => {
     setEditingReport(null);
     setCreatingReport(false);
-    setNewReportStage('entry');
-    setInitialFiles([]);
     if (saved) bump();
   };
 
@@ -112,8 +108,6 @@ export default function App() {
             memberName={memberName}
             onCreate={() => {
               setCreatingReport(true);
-              setNewReportStage('entry');
-              setInitialFiles([]);
               setTab('reports');
             }}
             onGoto={(t: Tab) => setTab(t)}
@@ -124,24 +118,22 @@ export default function App() {
 
         {tab === 'reports' &&
           (creatingReport || editingReport ? (
-            creatingReport && !editingReport && newReportStage === 'entry' ? (
-              <NewReportEntry
-                onFiles={(files) => {
-                  setInitialFiles(files);
-                  setNewReportStage('form');
-                }}
-                onManual={() => {
-                  setInitialFiles([]);
-                  setNewReportStage('form');
-                }}
+            creatingReport && !editingReport ? (
+              <NewReportWizard
+                members={members}
                 onCancel={() => closeForm(false)}
+                onDone={closeForm}
+                onGoToMembers={() => {
+                  setCreatingReport(false);
+                  setEditingReport(null);
+                  setTab('members');
+                }}
               />
             ) : (
-              <ReportForm
+              <ReportReview
                 members={members}
                 editingReport={editingReport}
                 initialMemberId={editingReport?.memberId ?? ''}
-                initialFiles={initialFiles}
                 onDone={closeForm}
               />
             )
@@ -155,8 +147,6 @@ export default function App() {
                 bump={bump}
                 onCreate={() => {
                   setCreatingReport(true);
-                  setNewReportStage('entry');
-                  setInitialFiles([]);
                 }}
                 onEdit={(r) => setEditingReport(r)}
               />

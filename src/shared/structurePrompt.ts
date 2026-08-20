@@ -72,6 +72,9 @@ ${FIXED_SCHEMA_JSON}
   reportNo=报告编号、personName=姓名、gender=性别、age=年龄、patientId=病历号、clinicalDiagnosis=临床诊断、
   testPurpose=检验目的、reportDate=报告日期(YYYY-MM-DD)、reportType=报告类型、title=标题、sampleDate=采样日期、receiveDate=接收日期、
   printDate=打印日期、senderDoctor=送检医生、inspector=检验者、reviewer=审核者；无法可靠判断的字段填空 ""（禁止猜测性补全）；
+- **testPurpose（检验目的）为每张整张报告必填字段**：这是报告上「检验目的/送检目的/检查目的/体检项目类别」那一栏的原文，
+  如「血常规检查」「肝功能检验」「健康体检」「甲状腺功能复查」等；必须从报告文字中逐字读取并填入该字段，
+  若报告上确实没有该栏或无法判读，才填空字符串 ""，**严禁编造、严禁写成占位说明**；
 - items 是检查项目列表：name=项目名（结合医学常识识别正确名称，纠正 OCR 明显的识别错误）、result=结果值原文（数值或定性，含 < > ≤ ≥ 前缀时保留）、
   referenceRange=参考区间、unit=单位、method=检验方法（缺失填空）、sourceText=该项目来源的原文片段（须与输入逐字一致，用于溯源，不得改动）；
 - 无法归入 report/items 的其它信息放到 extraFields 或 notes；

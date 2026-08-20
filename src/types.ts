@@ -54,15 +54,35 @@ export interface ReportDetail {
   value: string;
 }
 
+/**
+ * 用户自定义报告类型/检查类别（持久化，家庭级/本地）。
+ *
+ * - 仅在用户在核对页明确「作为新的报告类型保存」（或手动新增）后写入，
+ *   识别/AI 绝不自动新增到库；
+ * - 名称已去首尾/内部空白并做合理长度校验，且不与内置 REPORT_TYPES 或已有自定义类型重复；
+ * - aliases 为「已确认的检验目的别名」：当用户把某段检验目的（testPurpose）确认为该自定义类型时
+ *   记录其原文，供下次识别 testPurpose 时严格匹配（仅名称/别名的精确/包含命中，不做猜测）。
+ */
+export interface CustomReportType {
+  id: string;
+  name: string;
+  /** 已确认的检验目的别名（原文，trim 后折叠空白；用于识别 testPurpose 匹配） */
+  aliases: string[];
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface Report {
   id: string;
   memberId: string;
   hospital: string; // 医院/体检机构
   reportDate: string; // YYYY-MM-DD
   reportType: string; // 体检类型
+  /** 检验目的（固定报告字段，独立于 details 附加信息；不混入附件信息或通用附加信息） */
+  testPurpose?: string;
   title: string;
   notes: string;
-  /** 附加元数据（送检医生/检验者/审核者/采样/接收/打印日期/临床诊断/检验目的等），可选，向后兼容 */
+  /** 附加元数据（送检医生/检验者/审核者/采样/接收/打印日期/临床诊断等），可选，向后兼容 */
   details?: ReportDetail[];
   attachmentIds: string[];
   createdAt: number;
@@ -122,6 +142,8 @@ export interface ExportPayload {
   attachments: SerializedAttachment[];
   /** 可选：家庭级标签映射（旧版导出文件缺省） */
   labelMappings?: LabelMapping[];
+  /** 可选：用户自定义报告类型（旧版导出文件缺省；导入时缺省为空数组，不报错） */
+  customReportTypes?: CustomReportType[];
 }
 
 export const EMPTY_MEMBER: Member = {

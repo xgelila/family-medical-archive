@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { db, deleteReportCascade, now } from '../db';
-import type { AttachmentRecord, Member, Report, ReportItem } from '../types';
-import { REPORT_TYPES } from '../types';
+import type { AttachmentRecord, Member, Report, ReportDetail, ReportItem } from '../types';
+import { mergeReportTypes, loadCustomReportTypes } from '../utils/customReportTypes';
 import { Chip, ConfirmButton, EmptyState, Field } from './Kit';
 import { toDisplayDate } from '../utils/dates';
 
@@ -28,6 +28,7 @@ export function ReportManager({
   const [reports, setReports] = useState<Report[]>([]);
   const [items, setItems] = useState<ReportItem[]>([]);
   const [attachments, setAttachments] = useState<AttachmentRecord[]>([]);
+  const [allReportTypes, setAllReportTypes] = useState<string[]>([]);
   const [filters, setFilters] = useState<ReportFilters>({
     memberId: '',
     keyword: '',
@@ -50,6 +51,7 @@ export function ReportManager({
       setAttachments(ats);
     };
     void load();
+    loadCustomReportTypes().then((cts) => setAllReportTypes(mergeReportTypes(cts)));
   }, [refreshKey]);
 
   const memberById = useMemo(() => new Map(members.map((m) => [m.id, m])), [members]);
@@ -111,74 +113,78 @@ export function ReportManager({
 
   return (
     <>
-      <div className="toolbar card">
-        <Field label="成员">
-          <select
-            value={filters.memberId}
-            onChange={(e) => setFilters((f) => ({ ...f, memberId: e.target.value }))}
-          >
-            <option value="">全部成员</option>
-            {members.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.name}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="报告类型">
-          <select
-            value={filters.reportType}
-            onChange={(e) => setFilters((f) => ({ ...f, reportType: e.target.value }))}
-          >
-            <option value="">全部类型</option>
-            {REPORT_TYPES.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="起始日期">
-          <input
-            type="date"
-            value={filters.dateFrom}
-            onChange={(e) => setFilters((f) => ({ ...f, dateFrom: e.target.value }))}
-          />
-        </Field>
-        <Field label="截止日期">
-          <input
-            type="date"
-            value={filters.dateTo}
-            onChange={(e) => setFilters((f) => ({ ...f, dateTo: e.target.value }))}
-          />
-        </Field>
-        <Field label="关键词" hint="医院 / 类型 / 项目名 / 标准标签 / 数值">
-          <input
-            value={filters.keyword}
-            onChange={(e) => setFilters((f) => ({ ...f, keyword: e.target.value }))}
-            placeholder="如：血糖、甲状腺、5.2"
-          />
-        </Field>
-        {activeFilterCount > 0 && (
-          <button
-            type="button"
-            className="btn btn-ghost btn-sm"
-            style={{ alignSelf: 'flex-end' }}
-            onClick={() =>
-              setFilters({ memberId: '', keyword: '', reportType: '', dateFrom: '', dateTo: '' })
-            }
-          >
-            清除筛选（{activeFilterCount}）
-          </button>
-        )}
-      </div>
+      {reports.length > 0 && (
+        <div className="toolbar card">
+          <Field label="成员">
+            <select
+              value={filters.memberId}
+              onChange={(e) => setFilters((f) => ({ ...f, memberId: e.target.value }))}
+            >
+              <option value="">全部成员</option>
+              {members.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="报告类型">
+            <select
+              value={filters.reportType}
+              onChange={(e) => setFilters((f) => ({ ...f, reportType: e.target.value }))}
+            >
+              <option value="">全部类型</option>
+              {allReportTypes.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="起始日期">
+            <input
+              type="date"
+              value={filters.dateFrom}
+              onChange={(e) => setFilters((f) => ({ ...f, dateFrom: e.target.value }))}
+            />
+          </Field>
+          <Field label="截止日期">
+            <input
+              type="date"
+              value={filters.dateTo}
+              onChange={(e) => setFilters((f) => ({ ...f, dateTo: e.target.value }))}
+            />
+          </Field>
+          <Field label="关键词" hint="医院 / 类型 / 项目名 / 标准标签 / 数值">
+            <input
+              value={filters.keyword}
+              onChange={(e) => setFilters((f) => ({ ...f, keyword: e.target.value }))}
+              placeholder="如：血糖、甲状腺、5.2"
+            />
+          </Field>
+          {activeFilterCount > 0 && (
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              style={{ alignSelf: 'flex-end' }}
+              onClick={() =>
+                setFilters({ memberId: '', keyword: '', reportType: '', dateFrom: '', dateTo: '' })
+              }
+            >
+              清除筛选（{activeFilterCount}）
+            </button>
+          )}
+        </div>
+      )}
 
-      <div className="list-head">
-        <span>共 {visibleReports.length} 份报告</span>
-        <button type="button" className="btn btn-primary" onClick={onCreate}>
-          + 新建报告
-        </button>
-      </div>
+      {reports.length > 0 && (
+        <div className="list-head">
+          <span>共 {visibleReports.length} 份报告</span>
+          <button type="button" className="btn btn-primary" onClick={onCreate}>
+            + 新建报告
+          </button>
+        </div>
+      )}
 
       {visibleReports.length === 0 ? (
         <EmptyState
@@ -311,12 +317,48 @@ export function ReportManager({
                     {r.notes}
                   </div>
                 ) : null}
+                {r.testPurpose ? (
+                  <div className="report-test-purpose">
+                    <strong>检验目的：</strong>
+                    {r.testPurpose}
+                  </div>
+                ) : null}
+                {r.details && r.details.length > 0 && <ReportDetails details={r.details} />}
               </div>
             );
           })}
         </div>
       )}
     </>
+  );
+}
+
+function ReportDetails({ details }: { details: ReportDetail[] }) {
+  const [open, setOpen] = useState(false);
+  const nonEmpty = details.filter((d) => d.value.trim() !== '');
+  if (nonEmpty.length === 0) return null;
+  return (
+    <div className="report-details">
+      <button
+        type="button"
+        className="details-toggle report-details-toggle"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <span>📋 报告详情（{nonEmpty.length} 项：送检医生 / 检验者 / 审核者等附加信息）</span>
+        <span className="dim">{open ? '▴' : '▾'}</span>
+      </button>
+      {open && (
+        <dl className="report-details-body">
+          {nonEmpty.map((d, i) => (
+            <div key={i} className="report-details-row">
+              <dt>{d.label}</dt>
+              <dd>{d.value}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+    </div>
   );
 }
 

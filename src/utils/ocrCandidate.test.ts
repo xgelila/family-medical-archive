@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ocrCandidateToDraft, type OcrCandidate } from './ocrCandidate';
+import { ocrCandidateToDraft, testPurposeToReportType, type OcrCandidate } from './ocrCandidate';
 
 /**
  * OCR/AI 候选项共享类型的测试：
@@ -29,6 +29,29 @@ function cand(partial: Partial<OcrCandidate> = {}): OcrCandidate {
     ...partial,
   };
 }
+
+describe('testPurposeToReportType（检验目的 → 严格报告类型候选）', () => {
+  it('精确/包含命中严格选项时返回对应报告类型', () => {
+    expect(testPurposeToReportType('血常规')).toBe('血常规');
+    expect(testPurposeToReportType('血常规检查')).toBe('血常规');
+    expect(testPurposeToReportType('肝功能检验')).toBe('肝功能');
+    expect(testPurposeToReportType('甲状腺功能复查')).toBe('甲状腺功能');
+    expect(testPurposeToReportType('肿瘤标志物筛查')).toBe('肿瘤标志物');
+  });
+
+  it('无命中（含空/空白/未识别）一律返回空串，绝不猜测回填', () => {
+    expect(testPurposeToReportType('')).toBe('');
+    expect(testPurposeToReportType('   ')).toBe('');
+    expect(testPurposeToReportType('健康体检')).toBe('');
+    expect(testPurposeToReportType('年度复查')).toBe('');
+    expect(testPurposeToReportType(undefined as unknown as string)).toBe('');
+  });
+
+  it('首尾空白不影响命中；不含严格选项的文字不误判', () => {
+    expect(testPurposeToReportType('  血常规  ')).toBe('血常规');
+    expect(testPurposeToReportType('体检未检出异常')).toBe('');
+  });
+});
 
 describe('ocrCandidateToDraft（追加到报告前的草稿映射）', () => {
   it('数值型候选映射为草稿行：保持原文字段、待确认、无标准标签', () => {

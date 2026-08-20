@@ -10,6 +10,8 @@ import { describe, expect, it } from 'vitest';
  * - 代理配置（含上游地址）只允许出现在 vite.config.ts（Node 侧）；
  * - 旧技术入口（AiStructurePanel / OcrPanel / OcrImageEditor / opencodeGo）必须已删除，
  *   不得再被任何源码引用或在 UI 文案中出现；
+ * - 图片编辑器（ImageCropModal / tui-image-editor / 全屏编辑 overlay）已移除，选图后原图直接进入
+ *   附件预览与识别，前端不得再引入任何图片编辑依赖或编辑器专用样式；
  * - 「识别数据」流程源码必须为纯本地裁剪（无网络调用）+ 黑盒文案（用户可见字符串不含
  *   OCR/AI/OpenCode/DeepSeek）；
  * - 隐私入口必须存在。
@@ -130,16 +132,20 @@ describe('「识别数据」黑盒流程与纯本地裁剪（源级约束）', (
     expect(visible).not.toMatch(/opencode\.ai/);
   });
 
-  it('裁剪器使用 react-easy-crop 且为纯本地实现：无网络调用/无遥测/无外发', () => {
-    const crop = readFileSync(join(SRC_DIR, 'components', 'ImageCropModal.tsx'), 'utf8');
-    expect(crop).toContain("import Cropper, { type Area } from 'react-easy-crop'");
-    expect(crop).not.toContain('fetch(');
-    expect(crop).not.toContain('XMLHttpRequest');
-    expect(crop).not.toContain('navigator.sendBeacon');
-    expect(crop).not.toMatch(/https?:\/\//);
-    expect(crop).not.toContain('localStorage');
-    expect(crop).not.toContain('indexedDB');
-    expect(crop).not.toContain('import.meta.env');
+  it('图片编辑器依赖已移除：无 ImageCropModal / tui-image-editor / 编辑器 CSS / 全屏编辑 overlay', () => {
+    // 选图后原图直接进入附件预览与识别，前端不得再引入任何图片编辑依赖或编辑器专用样式。
+    expect(TREE).not.toContain('ImageCropModal');
+    expect(TREE).not.toContain('tui-image-editor');
+    expect(TREE).not.toContain('tui-editor-viewport');
+    expect(TREE).not.toContain('img-editor-overlay');
+    expect(TREE).not.toContain('img-editor-modal');
+    expect(TREE).not.toContain('editQueue');
+    expect(TREE).not.toContain('openCrop');
+    expect(TREE).not.toContain('setCropOpen');
+    const css = readFileSync(join(SRC_DIR, 'styles.css'), 'utf8');
+    expect(css).not.toContain('img-editor-overlay');
+    expect(css).not.toContain('img-editor-modal');
+    expect(css).not.toContain('tui-editor-viewport');
   });
 
   it('识别面板渲染 JSX 不出现原始文本字段', () => {

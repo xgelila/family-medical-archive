@@ -3,10 +3,14 @@ import { defineConfig, loadEnv, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { systemPromptForMode } from './src/shared/structurePrompt';
+import { isRecognizeMode, type RecognizeMode } from './src/shared/recognizeProtocol';
 import {
-  isRecognizeMode,
-  type RecognizeMode,
-} from './src/shared/recognizeProtocol';
+  announceMockEnabled,
+  buildMockRecognizeContent,
+  isMockRecognitionEnabled,
+  MOCK_DEV_MODE,
+  mockDelayMs,
+} from './src/shared/mockRecognition';
 
 /**
  * 「识别数据」同源中间件（仅本机开发）。
@@ -142,7 +146,9 @@ export function readDeepSeekConfig(env: Record<string, string>): RecognizeServer
   const model = pick(env, ['DEEPSEEK_MODEL']) || DEEPSEEK_DEFAULT_MODEL;
   const authHeader = pick(env, ['DEEPSEEK_AUTH_HEADER']) || UPSTREAM_DEFAULT_AUTH_HEADER;
   const scheme =
-    env.DEEPSEEK_AUTH_SCHEME !== undefined ? env.DEEPSEEK_AUTH_SCHEME : UPSTREAM_DEFAULT_AUTH_SCHEME;
+    env.DEEPSEEK_AUTH_SCHEME !== undefined
+      ? env.DEEPSEEK_AUTH_SCHEME
+      : UPSTREAM_DEFAULT_AUTH_SCHEME;
   const authValue = scheme.trim() === '' ? apiKey : `${scheme.trim()} ${apiKey}`;
   return { name: 'deepseek', apiKey, endpoint, model, authHeader, authValue };
 }
@@ -572,30 +578,25 @@ export async function recognizeWithFallback(
   signal: AbortSignal,
   timeouts?: UpstreamTimeoutBudget,
 ): Promise<RecognizeFlowResult> {
-  return (
-    await recognizeWithFallbackDebug(primary, fallback, payloadBody, signal, timeouts)
-  ).result;
+  return (await recognizeWithFallbackDebug(primary, fallback, payloadBody, signal, timeouts))
+    .result;
 }
 
-/** 中间件主流程：校验 → 主上游（OpenCode Go）→ 额度类失败时回退到直连 DeepSeek → 清洗响应。 */
+/**
+ * 中间件主流程：
+ * - mock 开启（仅开发环境 + MOCK_RECOGNITION=true）时，直接返回 docs/sample.json 适配结果，
+ *   不调用任何上游 / API Key，前端协议与真实识别接口一致；
+ * - 否则：校验 → 主上游（OpenCode Go）→ 额度类失败时回退到直连 DeepSeek → 清洗响应。
+ */
 async function handleRecognizeReport(
   req: IncomingMessage,
   res: ServerResponse,
   primary: RecognizeServerConfig,
   fallback: RecognizeServerConfig,
   timeouts: UpstreamTimeoutBudget,
+  mockEnabled: boolean,
+  mockDelay: number,
 ): Promise<void> {
-  if (primary.apiKey === '') {
-    writeJson(
-      res,
-      503,
-      jsonError(
-        503,
-        '识别功能尚未启用：请在本机配置服务密钥（项目根目录 .env.local 中的 DEEPSEEK_API_KEY）并重启开发服务后重试。',
-      ),
-    );
-    return;
-  }
   if (req.method !== 'POST') {
     writeJson(res, 405, jsonError(405, '该接口仅支持 POST 请求。'));
     return;
@@ -608,6 +609,41 @@ async function handleRecognizeReport(
   const body = await readJsonBody(req, MAX_REQUEST_BODY_BYTES);
   if (!body.ok) {
     writeJson(res, body.status, jsonError(body.status, body.message));
+    return;
+  }
+
+  // ---- mock 分支：不调用上游 / 不读取 API Key ----
+  if (mockEnabled) {
+    const startedAt = Date.now();
+    if (mockDelay > 0) {
+      await new Promise((r) => setTimeout(r, mockDelay));
+    }
+    const content = buildMockRecognizeContent(body.mode);
+    // 安全 debug：标注 mock 来源，不含任何密钥 / 请求体 / 响应体
+    const mockDebug: RecognizeDebug = {
+      upstreamTried: [],
+      selectedUpstream: null,
+      selectedUpstreamModel: null,
+      selectedUpstreamEndpoint: null,
+      failedUpstream: null,
+      fallbackReason: null,
+      durationMs: Date.now() - startedAt,
+      attempts: [],
+    };
+    writeJson(res, 200, JSON.stringify({ content, debug: mockDebug }));
+    return;
+  }
+
+  // ---- 真实模式（不 mock）----
+  if (primary.apiKey === '') {
+    writeJson(
+      res,
+      503,
+      jsonError(
+        503,
+        '识别功能尚未启用：请在本机配置服务密钥（项目根目录 .env.local 中的 DEEPSEEK_API_KEY）并重启开发服务后重试。',
+      ),
+    );
     return;
   }
 
@@ -671,6 +707,8 @@ function recognizeReportMiddleware(
   primary: RecognizeServerConfig,
   fallback: RecognizeServerConfig,
   timeouts: UpstreamTimeoutBudget,
+  mockEnabled: boolean,
+  mockDelay: number,
 ): Plugin {
   return {
     name: 'recognize-report-middleware',
@@ -685,7 +723,7 @@ function recognizeReportMiddleware(
           next();
           return;
         }
-        void handleRecognizeReport(req, res, primary, fallback, timeouts);
+        void handleRecognizeReport(req, res, primary, fallback, timeouts, mockEnabled, mockDelay);
       });
     },
   };
@@ -697,10 +735,30 @@ export default defineConfig(({ mode }) => {
   const deepSeekCfg = readDeepSeekConfig(env);
   const timeouts = readUpstreamTimeouts(env);
 
+  // 开发环境 mock：仅当 dev 模式（非 build/preview）且 MOCK_RECOGNITION=true 时启用；
+  // 未设置时保持真实行为，绝不调用上游 / 不读取 API Key 的逻辑仅在 mock 开启时生效。
+  const mockEnabled = mode === MOCK_DEV_MODE && isMockRecognitionEnabled(env);
+  const mockDelay = mockEnabled ? mockDelayMs(env) : 0;
+  if (mockEnabled) {
+    announceMockEnabled();
+  }
+
   return {
     // 主上游 = 直连 DeepSeek；备上游 = OpenCode Go（仅在 DeepSeek 额度类失败时回退）
-    plugins: [react(), recognizeReportMiddleware(deepSeekCfg, openCodeGoCfg, timeouts)],
+    plugins: [
+      react(),
+      recognizeReportMiddleware(deepSeekCfg, openCodeGoCfg, timeouts, mockEnabled, mockDelay),
+    ],
     base: './',
+    // 修复 React Invalid hook call（App.tsx 首行 useState dispatcher null）：
+    // 确保 Vite 预构建/依赖解析始终只保留一份 React/ReactDOM 实例，
+    // 避免旧 optimizeDeps 缓存或依赖图解析产生重复 React 副本。
+    resolve: {
+      dedupe: ['react', 'react-dom'],
+    },
+    optimizeDeps: {
+      include: ['react', 'react-dom'],
+    },
     build: {
       outDir: 'dist',
       sourcemap: false,

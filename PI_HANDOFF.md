@@ -53,8 +53,11 @@
 1. 确认 UI 重设计路线（见上方 A/B 对比，推荐 A），落地前先出交互稿/说明再改代码。
 2. 重设计完成后，铺到其余页面（概览/列表/趋势/成员/数据管理）。
 3. 受控目录：等用户决定是否扩项 + 医学审核 + 修 `糖化血红蛋白Al` 别名；当前曲线不依赖它。
+4. 本次会话已完成路线 A 向导初版：新建报告改为三步流程（选成员 → 扫描/手动（有图自动进识别）→ 核对并保存），并修复整张报告识别元数据传递、切换来源时清理旧识别结果、隐藏无效的仅识别入口。
+5. **路线 A 向导已按用户 6 点反馈迭代**：无成员提示+去成员页入口；扫描报告主按钮→bottom-sheet（拍摄/相册）；选图自动进图片编辑（tui-image-editor 原生 cropzone 裁剪/pixelate 马赛克，逐张，不承诺擦除原图）；AI schema/prompt 增加 testPurpose=检验目的→映射报告类型；识别成功自动进入 ReportReview（识别整张报告为唯一主 CTA，无二次确认/下一步）；第 3 步改为 ReportReview 核对页（不再挂载旧识别面板，识别结果保留，返回识别页可查看既有候选）。新增 `ScanSourceSheet`/`ImageCropModal` 重构/`ReportReview`/`wizardFlow` 纯逻辑 + 对应测试。依赖新增 `tui-image-editor@3.15.3`。
 
 ## 验证命令
 
 - `npm run typecheck`、`npm run build`、`npm run format:check`、`npx vitest run`（当前 218 用例全绿）
 - 本地 dev：`npm run dev -- --host 127.0.0.1 --port 5173`；识别接口仅 dev 可用，生产静态部署无该接口。
+- 本次验证：`npm run typecheck`、`npm run build`、`npx vitest run`（现 242 用例全绿）全部通过；`npm run format:check` 仅因既有 `PI_HANDOFF.md` 格式警告失败，相关源码定向 prettier 检查通过。

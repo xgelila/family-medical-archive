@@ -1,5 +1,5 @@
 import type { ItemDraft } from './labels';
-import type { LabelRecommendationStatus, ReportDetail } from '../types';
+import { REPORT_TYPES, type LabelRecommendationStatus, type ReportDetail } from '../types';
 
 /**
  * OCR / AI 候选项的共享数据类型与转换（纯函数，可单测）。
@@ -63,6 +63,8 @@ export interface ReportScanMeta {
   hospital: string;
   reportDate: string;
   reportType: string;
+  /** 检验目的（固定报告字段，独立于 details/附件信息；识别后待用户确认） */
+  testPurpose: string;
   title: string;
   notes: string;
 }
@@ -72,6 +74,22 @@ export interface ReportScanResult {
   report: ReportScanMeta;
   details: ReportDetail[];
   items: OcrCandidate[];
+}
+
+/**
+ * 把识别出的「检验目的」（testPurpose）映射为严格报告类型选项候选。
+ *
+ * 边界：只做**精确/包含命中**（在 REPORT_TYPES 严格列表内查找），绝不猜测、
+ * 绝不自由联想；无命中返回空串（不自动回填，仍由用户选择）。
+ * 例如「血常规检查」「肝功能检验」→ 命中严格选项；「健康体检」→ 空。
+ */
+export function testPurposeToReportType(testPurpose: string): string {
+  const p = (testPurpose ?? '').trim();
+  if (p === '') return '';
+  for (const t of REPORT_TYPES) {
+    if (p.includes(t)) return t;
+  }
+  return '';
 }
 
 /**

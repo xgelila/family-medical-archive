@@ -1,0 +1,160 @@
+{
+  "format": "family-medical-archive",
+  "version": 1,
+  "exportedAt": "2026-08-20T14:30:12.168Z",
+  "app": "family-medical-archive",
+  "members": [
+    {
+      "id": "f9d590d9-f6d9-4820-a7e6-e4f0a23429c0",
+      "name": "哈哈",
+      "gender": "未填写",
+      "birthDate": "",
+      "relation": "",
+      "createdAt": 1787193743025,
+      "updatedAt": 1787193743025
+    }
+  ],
+  "reports": [
+    {
+      "id": "360f4d1a-f96f-4038-a129-66bfe97cd06c",
+      "memberId": "f9d590d9-f6d9-4820-a7e6-e4f0a23429c0",
+      "hospital": "浙江大学医学院附属第二医院",
+      "reportDate": "2026-08-17",
+      "reportType": "",
+      "title": "检验报告",
+      "notes": "",
+      "details": [
+        {
+          "label": "分院",
+          "value": "滨江"
+        },
+        {
+          "label": "报告编号",
+          "value": "140861985100"
+        },
+        {
+          "label": "检验目的",
+          "value": "糖化血红蛋白"
+        },
+        {
+          "label": "采样日期",
+          "value": "2026-08-17"
+        },
+        {
+          "label": "接收日期",
+          "value": "2026-08-17"
+        },
+        {
+          "label": "打印日期",
+          "value": "2026-08-17"
+        },
+        {
+          "label": "送检医生",
+          "value": "俞莹莹"
+        },
+        {
+          "label": "检验者",
+          "value": "斐关等"
+        },
+        {
+          "label": "审核者",
+          "value": "本如"
+        },
+        {
+          "label": "页脚·互认标识说明",
+          "value": "“*#” 为浙江省临床检验结果互认项目标识，等同于“浙江HR”。"
+        },
+        {
+          "label": "页脚·标本保存说明",
+          "value": "该结果标本保存7天，如有疑问请于7天内与检验科及相关科室咨询。"
+        },
+        {
+          "label": "未识别原文",
+          "value": "0 Preview Download\n\n人\n\n四 轩 力 [| 病案 与 国 国 多 临床 诊断 :\n\n如 国 . v 检验 目的 : 糖化 血红 蛋白\n\n送 检 医 师 : 3659_ 俞 莹 莹 报告 日 期 : 2026/8/17 9:05:35 检 验 者 : 斐 关 等 审核 者 : 本 如。\n\n采集 日 期 : 2026/8/17 8:18:44 接收 日 期 : 2026/8/17 8:18:45 打印 日 期 : 2026/8/17 9:10:40"
+        }
+      ],
+      "attachmentIds": [
+        "50717cb1-47be-4125-bc6b-c3a6abf3d077"
+      ],
+      "createdAt": 1787234841988,
+      "updatedAt": 1787234841988
+    }
+  ],
+  "items": [
+    {
+      "id": "0d4e6bd3-45ef-4ed7-bd0b-2e3c804bf81d",
+      "reportId": "360f4d1a-f96f-4038-a129-66bfe97cd06c",
+      "memberId": "f9d590d9-f6d9-4820-a7e6-e4f0a23429c0",
+      "index": 1,
+      "name": "糖化血红蛋白A1c",
+      "resultKind": "numeric",
+      "value": "5.5",
+      "unit": "%",
+      "refRange": "4.0-6.0",
+      "notes": "方法：东曹阳离子交换HP",
+      "confirmed": true,
+      "standardLabel": "",
+      "createdAt": 1787234841988,
+      "updatedAt": 1787234845830
+    },
+    {
+      "id": "39a255cf-f764-43c8-927d-d4c981389480",
+      "reportId": "360f4d1a-f96f-4038-a129-66bfe97cd06c",
+      "memberId": "f9d590d9-f6d9-4820-a7e6-e4f0a23429c0",
+      "index": 3,
+      "name": "估计血浆平均葡萄糖浓度",
+      "resultKind": "numeric",
+      "value": "6.2",
+      "unit": "mmol/L",
+      "refRange": "4.2-7.8",
+      "notes": "方法：计算法",
+      "confirmed": true,
+      "standardLabel": "",
+      "createdAt": 1787234841988,
+      "updatedAt": 1787234846935
+    },
+    {
+      "id": "65ee2f7a-94f2-40f9-90a9-d86d6324643f",
+      "reportId": "360f4d1a-f96f-4038-a129-66bfe97cd06c",
+      "memberId": "f9d590d9-f6d9-4820-a7e6-e4f0a23429c0",
+      "index": 0,
+      "name": "糖化血红蛋白A1",
+      "resultKind": "numeric",
+      "value": "7.0",
+      "unit": "%",
+      "refRange": "6.1-8.2",
+      "notes": "方法：计算法",
+      "confirmed": true,
+      "standardLabel": "",
+      "createdAt": 1787234841988,
+      "updatedAt": 1787234844216
+    },
+    {
+      "id": "70798f05-4c9b-4f7e-ba6b-f8879e7da256",
+      "reportId": "360f4d1a-f96f-4038-a129-66bfe97cd06c",
+      "memberId": "f9d590d9-f6d9-4820-a7e6-e4f0a23429c0",
+      "index": 2,
+      "name": "糖化血红蛋白F",
+      "resultKind": "numeric",
+      "value": "0.3",
+      "unit": "%",
+      "refRange": "0.1-1.3",
+      "notes": "方法：东曹阳离子交换HP",
+      "confirmed": true,
+      "standardLabel": "",
+      "createdAt": 1787234841988,
+      "updatedAt": 1787234846449
+    }
+  ],
+  "attachments": [
+    {
+      "id": "50717cb1-47be-4125-bc6b-c3a6abf3d077",
+      "reportId": "360f4d1a-f96f-4038-a129-66bfe97cd06c",
+      "name": "WechatIMG1308.jpg",
+      "mimeType": "image/jpeg",
+      "size": 183206,
+      "kind": "image",
+      "createdAt": 1787234687363
+  ],
+  "labelMappings": []
+}

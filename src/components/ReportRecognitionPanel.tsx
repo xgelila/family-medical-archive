@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { AttachmentRecord, ReportDetail } from '../types';
 import { REPORT_TYPES } from '../types';
-import { ImageCropModal, type CroppedImage } from './ImageCropModal';
 import { ocrStatusText, type OcrProgress } from '../utils/ocr';
 import { createConfiguredOcrEngine, type OcrEngine } from '../utils/ocrEngine';
 import { preprocessImage } from '../utils/ocrPreprocess';
@@ -20,8 +19,10 @@ import {
   type RecognizeDebugInfo,
 } from '../utils/recognizeApi';
 import type { OcrCandidate, ReportScanMeta } from '../utils/ocrCandidate';
+import { matchTestPurposeToType, loadCustomReportTypes } from '../utils/customReportTypes';
 import { cleanFreeText } from '../utils/displayName';
 import { todayISO } from '../utils/dates';
+import type { ItemDraft } from '../utils/labels';
 
 /**
  * 「识别数据」面板（黑盒流程）。
@@ -142,6 +143,34 @@ function reportTypeCandidate(reportType: string): string {
   return (REPORT_TYPES as readonly string[]).includes(reportType) ? reportType : '';
 }
 
+/**
+ * 向导带回的既有识别草稿（ItemDraft，已在 ReportReview 编辑过）→ 面板候选行（DraftRow）。
+ * 仅用于返回识别页时展示已有候选，不要求重新识别即可查看。
+ * 注意：method 已并入 notes（「方法：…」），此处尽力还原展示，缺失不阻塞。
+ */
+function draftToRow(it: ItemDraft): DraftRow {
+  return {
+    name: it.name,
+    displayName: it.name,
+    resultKind: it.resultKind,
+    value: it.value,
+    unit: it.unit,
+    refRange: it.refRange,
+    method: it.notes.startsWith('方法：') ? it.notes.slice('方法：'.length) : '',
+    confidence: null,
+  };
+}
+
+/** 向导带回的既有附加详情（ReportDetail[]）→ 面板「附加识别信息」的 extraFields 展示。 */
+function detailsToExtraFields(details: ReportDetail[]): AiStructuredExtraField[] {
+  return details.map((d) => ({
+    section: '其他',
+    key: d.label,
+    value: d.value,
+    sourceText: '',
+  }));
+}
+
 /** 表单未覆盖的 report 字段（用于「附加识别信息」折叠区展示）；仅展示非空值。 */
 const REPORT_EXTRA_LABELS: ReadonlyArray<[keyof AiReportFields, string]> = [
   ['branch', '分院'],
@@ -151,7 +180,6 @@ const REPORT_EXTRA_LABELS: ReadonlyArray<[keyof AiReportFields, string]> = [
   ['age', '年龄'],
   ['patientId', '病历号'],
   ['clinicalDiagnosis', '临床诊断'],
-  ['testPurpose', '检验目的'],
   ['sampleDate', '采样日期'],
   ['receiveDate', '接收日期'],
   ['printDate', '打印日期'],
@@ -200,6 +228,11 @@ export function ReportRecognitionPanel({
   onReportScan,
   memberSelected = false,
   initialReportMeta,
+  initialItems,
+  initialDetails,
+  reportModeOnly = false,
+  onPhaseChange,
+  autoReportScan = false,
 }: {
   attachments: AttachmentRecord[];
   onImport: (candidates: OcrCandidate[]) => void;
@@ -209,7 +242,18 @@ export function ReportRecognitionPanel({
     items: OcrCandidate[];
   }) => void;
   memberSelected?: boolean;
+  /** 整张报告识别的既有报告信息候选（由向导带回，返回识别页时无需重新识别即可查看）。 */
   initialReportMeta?: ReportScanMeta;
+  /** 既有识别项目候选（由向导带回，返回识别页时展示为候选行）。 */
+  initialItems?: ItemDraft[];
+  /** 既有附加识别详情（由向导带回，返回识别页时在「附加识别信息」中展示）。 */
+  initialDetails?: ReportDetail[];
+  /** 仅走「整张报告」流程时隐藏无效的「仅识别检查项目」入口（如新建向导路线 A）。 */
+  reportModeOnly?: boolean;
+  /** 识别阶段变化回调（用于外层在识别进行中禁用冲突操作）。 */
+  onPhaseChange?: (phase: Phase) => void;
+  /** 整张报告识别成功时自动回调 onReportScan（新建向导流程：成功即带结果自动进入核对页）。 */
+  autoReportScan?: boolean;
 }) {
   const images = useMemo(() => attachments.filter((a) => a.kind === 'image'), [attachments]);
   const hasPdfOnly = attachments.length > 0 && images.length === 0;
@@ -221,44 +265,69 @@ export function ReportRecognitionPanel({
   }, [images]);
 
   const [phase, setPhase] = useState<Phase>('idle');
+  // 把阶段变化暴露给外层（识别进行中禁用冲突操作）
+  useEffect(() => {
+    onPhaseChange?.(phase);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
   // 新建报告默认走「整张报告」模式（一次拿到报告信息 + 项目）；编辑旧报告无 onReportScan，仅识别项目。
   const [mode, setMode] = useState<Mode>(onReportScan ? 'report' : 'items');
   const [progress, setProgress] = useState<OcrProgress | null>(null);
   const [error, setError] = useState('');
-  const [rows, setRows] = useState<DraftRow[]>([]);
+  // 由向导带回的既有候选（返回识别页时无需重新识别即可查看；新识别仍会覆盖）
+  const [rows, setRows] = useState<DraftRow[]>(() => (initialItems ?? []).map(draftToRow));
   const [message, setMessage] = useState('');
-  const [cropOpen, setCropOpen] = useState(false);
 
   // 仅本机调试面板：默认折叠，只在识别流程运行过或出错后显示。
   const [debugInfo, setDebugInfo] = useState<RecognitionDebug>(EMPTY_DEBUG);
   const [debugOpen, setDebugOpen] = useState(false);
 
   // 整张报告模式的报告信息候选（全部可编辑；点击「创建报告并添加已选项目」才写入表单）
-  const [reportMeta, setReportMeta] = useState<ReportScanMeta>({
-    hospital: '',
-    reportDate: '',
-    reportType: '',
-    title: '',
-    notes: '',
-  });
+  // 初值由向导带回的既有 reportMeta 提供，返回识别页时无需重新识别即可查看。
+  const [reportMeta, setReportMeta] = useState<ReportScanMeta>(() => ({
+    hospital: initialReportMeta?.hospital ?? '',
+    reportDate: initialReportMeta?.reportDate ?? '',
+    reportType: initialReportMeta?.reportType ?? '',
+    testPurpose: initialReportMeta?.testPurpose ?? '',
+    title: initialReportMeta?.title ?? '',
+    notes: initialReportMeta?.notes ?? '',
+  }));
   const [aiReportDateHint, setAiReportDateHint] = useState('');
   const [aiReportTypeHint, setAiReportTypeHint] = useState('');
 
   // 识别结果中的「附加信息」（extraFields/notes/unresolvedText + 表单未覆盖的 report 字段），
-  // 默认折叠展示，不写入表单。
+  // 默认折叠展示，不写入表单。初值由向导带回的既有 details 提供。
   const [scanExtras, setScanExtras] = useState<{
     report: AiReportFields | null;
     extraFields: AiStructuredExtraField[];
     notes: AiStructuredNote[];
     unresolvedText: string;
-  }>({ report: null, extraFields: [], notes: [], unresolvedText: '' });
+  }>(() => ({
+    report: null,
+    extraFields: detailsToExtraFields(initialDetails ?? []),
+    notes: [],
+    unresolvedText: '',
+  }));
   const [extrasOpen, setExtrasOpen] = useState(false);
+  // 用户自定义报告类型（识别 testPurpose 匹配时纳入，仅严格匹配，不自动新增）
+  const [customTypes, setCustomTypes] = useState<{ name: string; aliases: string[] }[]>([]);
+  useEffect(() => {
+    let alive = true;
+    loadCustomReportTypes().then((cts) => {
+      if (alive) setCustomTypes(cts.map((c) => ({ name: c.name, aliases: c.aliases })));
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const lastBlobRef = useRef<Blob | null>(null);
   // 通过引擎工厂创建 Tesseract 本地 OCR 会话；统一接口 create/recognize/terminate。
   const engineFactoryRef = useRef<ReturnType<typeof createConfiguredOcrEngine> | null>(null);
   const sessionRef = useRef<OcrEngine | null>(null);
   const cancelledRef = useRef(false);
+  // 整张报告「自动完成」已触发标记：同一轮识别只自动回调一次。
+  const autoFiredRef = useRef(false);
 
   // 卸载时释放 worker，避免后台残留识别
   useEffect(() => {
@@ -276,6 +345,7 @@ export function ReportRecognitionPanel({
   /** 全流程：读取（本机）→ 整理（同源代理，仅文字 + 模式） */
   const run = async (blob: Blob, m: Mode) => {
     cancelledRef.current = false;
+    autoFiredRef.current = false;
     lastBlobRef.current = blob;
     setRows([]);
     setMessage('');
@@ -287,14 +357,14 @@ export function ReportRecognitionPanel({
     setExtrasOpen(false);
     setProgress({ status: 'initializing tesseract', progress: 0 });
     if (m === 'report') {
+      // 新识别一律从空开始，识别出的新结果覆盖旧候选（含从向导带回的既有 reportMeta）
       setReportMeta({
-        ...(initialReportMeta ?? {
-          hospital: '',
-          reportDate: '',
-          reportType: '',
-          title: '',
-          notes: '',
-        }),
+        hospital: '',
+        reportDate: '',
+        reportType: '',
+        testPurpose: '',
+        title: '',
+        notes: '',
       });
       setAiReportDateHint('');
       setAiReportTypeHint('');
@@ -384,6 +454,7 @@ export function ReportRecognitionPanel({
         const hospital = cleanFreeText(cleaned.report.hospital);
         const title = cleanFreeText(cleaned.report.title);
         const rpType = reportTypeCandidate(cleaned.report.reportType.trim());
+        const purposeType = matchTestPurposeToType(cleaned.report.testPurpose, customTypes);
         const dateRaw = cleaned.report.reportDate.trim();
         const dateOk = ISO_DATE_RE.test(dateRaw) ? dateRaw : '';
         setReportMeta((prev) => ({
@@ -393,7 +464,10 @@ export function ReportRecognitionPanel({
             prev.reportDate !== '' && prev.reportDate !== todayISO()
               ? prev.reportDate
               : dateOk || prev.reportDate,
-          reportType: prev.reportType !== '' ? prev.reportType : rpType,
+          reportType: prev.reportType !== '' ? prev.reportType : rpType || purposeType,
+          // 检验目的是报告结构的固定字段，独立保留（不混入 details/附件信息）
+          testPurpose:
+            prev.testPurpose !== '' ? prev.testPurpose : cleaned.report.testPurpose.trim(),
           title: prev.title !== '' ? prev.title : title,
           notes: prev.notes,
         }));
@@ -436,17 +510,18 @@ export function ReportRecognitionPanel({
     }
   };
 
-  const openCrop = (m: Mode) => {
-    if (!selectedId) return;
+  /** 直接对已选图片发起识别，不再打开裁剪/编辑浮窗。 */
+  const runOnSelected = (m: Mode) => {
+    if (!selectedImage) return;
     setError('');
     setPhaseClean('idle');
     setMode(m);
-    setCropOpen(true);
+    void run(selectedImage.blob, m);
   };
 
   const retry = () => {
     if (lastBlobRef.current) void run(lastBlobRef.current, mode);
-    else openCrop(mode);
+    else runOnSelected(mode);
   };
 
   const addToReport = () => {
@@ -458,23 +533,42 @@ export function ReportRecognitionPanel({
     setMessage(`已将 ${count} 项添加到下方项目列表（仍为待确认，请核对后确认）。`);
   };
 
+  /** 构造整张报告扫描结果（报告信息候选 + 附加详情 + 项目候选）。 */
+  const buildScan = (): {
+    report: ReportScanMeta;
+    details: ReportDetail[];
+    items: OcrCandidate[];
+  } => ({
+    report: {
+      hospital: reportMeta.hospital.trim(),
+      reportDate: reportMeta.reportDate,
+      reportType: reportMeta.reportType,
+      testPurpose: reportMeta.testPurpose.trim(),
+      title: reportMeta.title.trim(),
+      notes: reportMeta.notes.trim(),
+    },
+    details: buildReportDetails(scanExtras.report, {
+      extraFields: scanExtras.extraFields,
+      notes: scanExtras.notes,
+      unresolvedText: scanExtras.unresolvedText,
+    }),
+    items: rows.map(rowToCandidate),
+  });
+
+  // 新建向导流程：整张报告识别成功（phase='done'）时自动回调 onReportScan，
+  // 由外层把结果带进核对页（无需用户再点「确认识别 / 下一步」）。
+  useEffect(() => {
+    if (!autoReportScan) return;
+    if (phase === 'done' && mode === 'report' && onReportScan && !autoFiredRef.current) {
+      autoFiredRef.current = true;
+      onReportScan(buildScan());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, mode, autoReportScan]);
+
   const createReportAndAddItems = () => {
     if (!onReportScan) return;
-    onReportScan({
-      report: {
-        hospital: reportMeta.hospital.trim(),
-        reportDate: reportMeta.reportDate,
-        reportType: reportMeta.reportType,
-        title: reportMeta.title.trim(),
-        notes: reportMeta.notes.trim(),
-      },
-      details: buildReportDetails(scanExtras.report, {
-        extraFields: scanExtras.extraFields,
-        notes: scanExtras.notes,
-        unresolvedText: scanExtras.unresolvedText,
-      }),
-      items: rows.map(rowToCandidate),
-    });
+    onReportScan(buildScan());
     const count = rows.length;
     setRows([]);
     setPhaseClean('idle');
@@ -488,6 +582,26 @@ export function ReportRecognitionPanel({
   /** 用户显式「采用」推荐标签：已随标签功能移除，此处不再提供。 */
 
   const percent = phase === 'reading' && progress ? Math.round(progress.progress * 100) : null;
+
+  // 识别进行中（读取/整理）：禁用面板主按钮，避免再次发起并发 run()。
+  const busy = phase === 'reading' || phase === 'structuring';
+
+  // 已有识别结果（从向导带回）：返回识别页时无需重新识别即可查看。
+  const hasSeededMeta =
+    reportMeta.hospital !== '' ||
+    reportMeta.reportDate !== '' ||
+    reportMeta.reportType !== '' ||
+    reportMeta.testPurpose !== '' ||
+    reportMeta.title !== '' ||
+    reportMeta.notes !== '';
+  const hasExtrasContent =
+    scanExtras.extraFields.length > 0 ||
+    scanExtras.notes.length > 0 ||
+    scanExtras.unresolvedText !== '' ||
+    (scanExtras.report !== null &&
+      REPORT_EXTRA_LABELS.some(([k]) => (scanExtras.report?.[k] ?? '').trim() !== ''));
+  // 展示识别结果：识别完成（done），或为向导带回的既有候选（不再要求重新识别才能看到）。
+  const showResults = phase === 'done' || rows.length > 0 || hasSeededMeta || hasExtrasContent;
 
   const reportModeAvailable = !!onReportScan;
   const selectedImage = images.find((a) => a.id === selectedId);
@@ -526,21 +640,28 @@ export function ReportRecognitionPanel({
             {reportModeAvailable && (
               <button
                 type="button"
-                className="btn btn-primary recog-main-btn"
-                disabled={!memberSelected}
+                className="btn btn-primary recog-main-btn recog-main-cta"
+                disabled={!memberSelected || busy}
                 title={
                   memberSelected
                     ? '识别整张报告：一次返回报告信息与检查项目（全部待确认）'
                     : '请先在上方选择成员，再识别整张报告。'
                 }
-                onClick={() => openCrop('report')}
+                onClick={() => runOnSelected('report')}
               >
                 🧾 识别整张报告
               </button>
             )}
-            <button type="button" className="btn recog-main-btn" onClick={() => openCrop('items')}>
-              📷 仅识别检查项目
-            </button>
+            {!reportModeOnly && (
+              <button
+                type="button"
+                className="btn recog-main-btn"
+                disabled={busy}
+                onClick={() => runOnSelected('items')}
+              >
+                📷 仅识别检查项目
+              </button>
+            )}
           </div>
           {reportModeAvailable && !memberSelected && (
             <span className="recog-hint">
@@ -589,14 +710,16 @@ export function ReportRecognitionPanel({
             <button type="button" className="btn btn-sm btn-primary" onClick={retry}>
               重试
             </button>
-            <button type="button" className="btn btn-sm" onClick={() => openCrop(mode)}>
-              重新裁剪
-            </button>
+            {!autoReportScan && (
+              <button type="button" className="btn btn-sm" onClick={() => runOnSelected(mode)}>
+                重新裁剪
+              </button>
+            )}
           </div>
         </div>
       )}
 
-      {phase === 'done' && mode === 'report' && (
+      {showResults && mode === 'report' && (
         <div className="recog-report-meta">
           <div className="att-head">
             <strong>识别出的报告信息（候选）</strong>
@@ -652,6 +775,14 @@ export function ReportRecognitionPanel({
               )}
             </label>
             <label className="crop-zoom-label">
+              检验目的
+              <input
+                value={reportMeta.testPurpose}
+                onChange={(e) => setReportMeta((m) => ({ ...m, testPurpose: e.target.value }))}
+                placeholder="如：血常规检查"
+              />
+            </label>
+            <label className="crop-zoom-label">
               标题
               <input
                 value={reportMeta.title}
@@ -682,7 +813,7 @@ export function ReportRecognitionPanel({
         </div>
       )}
 
-      {phase === 'done' && rows.length > 0 && (
+      {showResults && rows.length > 0 && (
         <div className="recog-result">
           <div className="att-head">
             <strong>识别结果（{rows.length} 项）</strong>
@@ -827,31 +958,29 @@ export function ReportRecognitionPanel({
                 添加到报告（{rows.length} 项）
               </button>
             )}
-            <button type="button" className="btn btn-sm" onClick={() => openCrop(mode)}>
-              重新识别
-            </button>
+            {!autoReportScan && (
+              <button type="button" className="btn btn-sm" onClick={() => runOnSelected(mode)}>
+                重新识别
+              </button>
+            )}
           </div>
         </div>
       )}
 
-      {phase === 'done' &&
-        scanExtras.report !== null &&
-        (REPORT_EXTRA_LABELS.some(([k]) => (scanExtras.report?.[k] ?? '').trim() !== '') ||
-          scanExtras.extraFields.length > 0 ||
-          scanExtras.notes.length > 0 ||
-          scanExtras.unresolvedText !== '') && (
-          <div className="recog-extras">
-            <button
-              type="button"
-              className="recog-debug-toggle"
-              aria-expanded={extrasOpen}
-              onClick={() => setExtrasOpen((v) => !v)}
-            >
-              <span>ℹ️ 附加识别信息（表单未覆盖字段 / 备注 / 未解析原文）</span>
-              <span className="recog-debug-caret">{extrasOpen ? '▾' : '▸'}</span>
-            </button>
-            {extrasOpen && scanExtras.report && (
-              <div className="recog-extras-body">
+      {showResults && hasExtrasContent && (
+        <div className="recog-extras">
+          <button
+            type="button"
+            className="recog-debug-toggle"
+            aria-expanded={extrasOpen}
+            onClick={() => setExtrasOpen((v) => !v)}
+          >
+            <span>ℹ️ 附加识别信息（表单未覆盖字段 / 备注 / 未解析原文）</span>
+            <span className="recog-debug-caret">{extrasOpen ? '▾' : '▸'}</span>
+          </button>
+          {extrasOpen && hasExtrasContent && (
+            <div className="recog-extras-body">
+              {scanExtras.report && (
                 <div className="recog-extras-section">
                   <strong>报告附加字段</strong>
                   <div className="recog-extras-kv">
@@ -866,51 +995,40 @@ export function ReportRecognitionPanel({
                     })}
                   </div>
                 </div>
-                {scanExtras.extraFields.length > 0 && (
-                  <div className="recog-extras-section">
-                    <strong>附加字段（extraFields）</strong>
-                    <ul>
-                      {scanExtras.extraFields.map((f, i) => (
-                        <li key={i}>
-                          <span className="dim">[{f.section}] </span>
-                          {f.key && <b>{f.key}：</b>}
-                          {f.value || '—'}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                {scanExtras.notes.length > 0 && (
-                  <div className="recog-extras-section">
-                    <strong>备注（notes）</strong>
-                    <ul>
-                      {scanExtras.notes.map((n, i) => (
-                        <li key={i}>{n.text || '—'}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                {scanExtras.unresolvedText !== '' && (
-                  <div className="recog-extras-section">
-                    <strong>未解析原文</strong>
-                    <pre className="recog-extras-pre">{scanExtras.unresolvedText}</pre>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-      {cropOpen && selectedImage && (
-        <ImageCropModal
-          key={selectedImage.id}
-          blob={selectedImage.blob}
-          onCancel={() => setCropOpen(false)}
-          onConfirm={(cropped: CroppedImage) => {
-            setCropOpen(false);
-            void run(cropped.blob, mode);
-          }}
-        />
+              )}
+              {scanExtras.extraFields.length > 0 && (
+                <div className="recog-extras-section">
+                  <strong>附加字段（extraFields）</strong>
+                  <ul>
+                    {scanExtras.extraFields.map((f, i) => (
+                      <li key={i}>
+                        <span className="dim">[{f.section}] </span>
+                        {f.key && <b>{f.key}：</b>}
+                        {f.value || '—'}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {scanExtras.notes.length > 0 && (
+                <div className="recog-extras-section">
+                  <strong>备注（notes）</strong>
+                  <ul>
+                    {scanExtras.notes.map((n, i) => (
+                      <li key={i}>{n.text || '—'}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {scanExtras.unresolvedText !== '' && (
+                <div className="recog-extras-section">
+                  <strong>未解析原文</strong>
+                  <pre className="recog-extras-pre">{scanExtras.unresolvedText}</pre>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       )}
 
       {debugInfo.ran && (

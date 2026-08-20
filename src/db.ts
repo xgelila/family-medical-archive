@@ -1,5 +1,12 @@
 import Dexie, { type Table } from 'dexie';
-import type { LabelMapping, Member, Report, ReportItem, AttachmentRecord } from './types';
+import type {
+  CustomReportType,
+  LabelMapping,
+  Member,
+  Report,
+  ReportItem,
+  AttachmentRecord,
+} from './types';
 
 export class ArchiveDB extends Dexie {
   members!: Table<Member, string>;
@@ -7,6 +14,7 @@ export class ArchiveDB extends Dexie {
   items!: Table<ReportItem, string>;
   attachments!: Table<AttachmentRecord, string>;
   labelMappings!: Table<LabelMapping, string>;
+  customReportTypes!: Table<CustomReportType, string>;
 
   constructor() {
     super('family-medical-archive');
@@ -19,6 +27,10 @@ export class ArchiveDB extends Dexie {
     // v2：家庭级「名称→目录标签」用户确认映射（仅存名称到 ID，不含健康数值）
     this.version(2).stores({
       labelMappings: 'id, nameKey, catalogId, createdAt',
+    });
+    // v3：用户自定义报告类型集合（持久化，识别/AI 不自动新增，仅用户确认后写入）
+    this.version(3).stores({
+      customReportTypes: 'id, name, createdAt',
     });
   }
 }

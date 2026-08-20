@@ -2,7 +2,9 @@ import { db, uid } from '../db';
 import {
   EXPORT_FORMAT,
   EXPORT_VERSION,
+  REPORT_TYPES,
   type AttachmentRecord,
+  type CustomReportType,
   type ExportPayload,
   type LabelMapping,
   type Member,
@@ -10,6 +12,7 @@ import {
   type ReportItem,
   type SerializedAttachment,
 } from '../types';
+import { normalizeReportTypeName } from './customReportTypes';
 
 export function blobToDataUrl(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -38,15 +41,17 @@ export function downloadJson(payload: ExportPayload, filename: string): void {
   setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
 
-/** 导出全部数据（含附件 base64 与家庭级标签映射） */
+/** 导出全部数据（含附件 base64 与家庭级标签映射、用户自定义报告类型） */
 export async function buildExport(): Promise<ExportPayload> {
-  const [members, reports, items, attachments, labelMappings] = await Promise.all([
-    db.members.toArray(),
-    db.reports.toArray(),
-    db.items.toArray(),
-    db.attachments.toArray(),
-    db.labelMappings.toArray(),
-  ]);
+  const [members, reports, items, attachments, labelMappings, customReportTypes] =
+    await Promise.all([
+      db.members.toArray(),
+      db.reports.toArray(),
+      db.items.toArray(),
+      db.attachments.toArray(),
+      db.labelMappings.toArray(),
+      db.customReportTypes.toArray(),
+    ]);
   const serialized: SerializedAttachment[] = await Promise.all(
     attachments.map(async (a) => ({
       id: a.id,
@@ -69,6 +74,7 @@ export async function buildExport(): Promise<ExportPayload> {
     items,
     attachments: serialized,
     labelMappings,
+    customReportTypes,
   };
 }
 
@@ -109,6 +115,7 @@ export interface CleanImportData {
   items: ReportItem[];
   attachments: AttachmentRecord[];
   labelMappings: LabelMapping[];
+  customReportTypes: CustomReportType[];
 }
 
 /**
@@ -231,6 +238,31 @@ export async function buildCleanImport(payload: ExportPayload): Promise<CleanImp
     });
   }
 
+  // 用户自定义报告类型：名称去空白/截断、与内置/已有自定义去重；缺省（旧数据）为空数组不报错。
+  const cleanCustomReportTypes: CustomReportType[] = [];
+  const usedTypeNames = new Set<string>(REPORT_TYPES as readonly string[]);
+  for (const c of payload.customReportTypes ?? []) {
+    if (!c || typeof c !== 'object') continue;
+    const name = normalizeReportTypeName(typeof c.name === 'string' ? c.name : '');
+    if (name === '' || name.length > 20) continue;
+    if (usedTypeNames.has(name)) continue; // 与内置或已加入的自定义类型重复则跳过
+    usedTypeNames.add(name);
+    const aliases = Array.isArray(c.aliases)
+      ? [
+          ...new Set(
+            c.aliases.map((a) => normalizeReportTypeName(a)).filter((a) => a !== '' && a !== name),
+          ),
+        ]
+      : [];
+    cleanCustomReportTypes.push({
+      id: ensureId(c.id, 'crt'),
+      name,
+      aliases,
+      createdAt: typeof c.createdAt === 'number' ? c.createdAt : Date.now(),
+      updatedAt: typeof c.updatedAt === 'number' ? c.updatedAt : Date.now(),
+    });
+  }
+
   // 报告 attachmentIds：只保留“已导入且确实属于该报告”的附件引用 → 删除孤立/无效引用。
   for (const r of cleanReports) {
     const input = inputReportsByInputId.get(r.id);
@@ -253,6 +285,7 @@ export async function buildCleanImport(payload: ExportPayload): Promise<CleanImp
     items: cleanItems,
     attachments: cleanAttachments,
     labelMappings: cleanLabelMappings,
+    customReportTypes: cleanCustomReportTypes,
   };
 }
 
@@ -264,23 +297,22 @@ export async function importPayload(obj: unknown): Promise<ImportResult> {
     const clean = await buildCleanImport(v.payload);
     await db.transaction(
       'rw',
-      db.members,
-      db.reports,
-      db.items,
-      db.attachments,
-      db.labelMappings,
+      [db.members, db.reports, db.items, db.attachments, db.labelMappings, db.customReportTypes],
       async () => {
         await db.members.clear();
         await db.reports.clear();
         await db.items.clear();
         await db.attachments.clear();
         await db.labelMappings.clear();
+        await db.customReportTypes.clear();
 
         if (clean.members.length > 0) await db.members.bulkAdd(clean.members);
         if (clean.reports.length > 0) await db.reports.bulkAdd(clean.reports);
         if (clean.items.length > 0) await db.items.bulkAdd(clean.items);
         if (clean.attachments.length > 0) await db.attachments.bulkAdd(clean.attachments);
         if (clean.labelMappings.length > 0) await db.labelMappings.bulkAdd(clean.labelMappings);
+        if (clean.customReportTypes.length > 0)
+          await db.customReportTypes.bulkAdd(clean.customReportTypes);
       },
     );
 

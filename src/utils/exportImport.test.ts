@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   EXPORT_FORMAT,
   EXPORT_VERSION,
+  type CustomReportType,
   type ExportPayload,
   type LabelMapping,
   type Member,
@@ -74,6 +75,7 @@ function payload(
     items?: ReportItem[];
     attachments?: SerializedAttachment[];
     labelMappings?: LabelMapping[];
+    customReportTypes?: CustomReportType[];
   } = {},
 ): ExportPayload {
   return {
@@ -86,6 +88,7 @@ function payload(
     items: over.items ?? [],
     attachments: over.attachments ?? [],
     labelMappings: over.labelMappings ?? [],
+    customReportTypes: over.customReportTypes ?? [],
   };
 }
 
@@ -242,5 +245,63 @@ describe('buildCleanImport 标准标签（显式设置；缺省视为未设置�
     expect(clean.items).toHaveLength(1);
     expect(clean.items[0].standardLabel).toBe('');
     expect(clean.items[0].value).toBe('2.1');
+  });
+});
+
+describe('buildCleanImport 用户自定义报告类型（导入导出保留，旧数据不报错）', () => {
+  it('旧版导出缺省 customReportTypes → 清洗为空数组，不报错', async () => {
+    const legacy = payload() as ExportPayload;
+    delete (legacy as { customReportTypes?: unknown }).customReportTypes;
+    const clean = await buildCleanImport(legacy);
+    expect(clean.customReportTypes).toEqual([]);
+  });
+
+  it('有效自定义类型被清洗导入（名称去空白，别名去重去空）', async () => {
+    const crt: CustomReportType[] = [
+      {
+        id: 'crt1',
+        name: ' 心 脏 超 声 ',
+        aliases: [' 心脏彩超 ', '心脏彩超', ''],
+        createdAt: 1,
+        updatedAt: 1,
+      },
+    ];
+    const clean = await buildCleanImport(payload({ customReportTypes: crt }));
+    expect(clean.customReportTypes).toHaveLength(1);
+    expect(clean.customReportTypes[0].name).toBe('心脏超声');
+    expect(clean.customReportTypes[0].aliases).toEqual(['心脏彩超']);
+  });
+
+  it('与内置类型重复的自定义类型被跳过（不导入）', async () => {
+    const crt: CustomReportType[] = [
+      { id: 'crt1', name: '血常规', aliases: [], createdAt: 1, updatedAt: 1 },
+    ];
+    const clean = await buildCleanImport(payload({ customReportTypes: crt }));
+    expect(clean.customReportTypes).toEqual([]);
+  });
+
+  it('空名 / 过长的自定义类型被跳过，不猜测补全', async () => {
+    const crt: CustomReportType[] = [
+      { id: 'a', name: '   ', aliases: [], createdAt: 1, updatedAt: 1 },
+      {
+        id: 'b',
+        name: '一二三四五六七八九十一二三四五六七八九十一',
+        aliases: [],
+        createdAt: 1,
+        updatedAt: 1,
+      },
+    ];
+    const clean = await buildCleanImport(payload({ customReportTypes: crt }));
+    expect(clean.customReportTypes).toEqual([]);
+  });
+
+  it('同名字段清理后重复的自定义类型仅保留一个', async () => {
+    const crt: CustomReportType[] = [
+      { id: 'a', name: '眼科', aliases: [], createdAt: 1, updatedAt: 1 },
+      { id: 'b', name: ' 眼科 ', aliases: [], createdAt: 1, updatedAt: 1 },
+    ];
+    const clean = await buildCleanImport(payload({ customReportTypes: crt }));
+    expect(clean.customReportTypes).toHaveLength(1);
+    expect(clean.customReportTypes[0].name).toBe('眼科');
   });
 });

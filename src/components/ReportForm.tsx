@@ -22,7 +22,7 @@ import {
 } from '../utils/labels';
 import { Field, ConfirmButton } from './Kit';
 import { todayISO } from '../utils/dates';
-import { ocrCandidateToDraft } from '../utils/ocrCandidate';
+import { ocrCandidateToDraft, type ReportScanMeta } from '../utils/ocrCandidate';
 import { ReportRecognitionPanel } from './ReportRecognitionPanel';
 
 export function ReportForm({
@@ -30,18 +30,29 @@ export function ReportForm({
   editingReport,
   initialMemberId,
   initialFiles,
+  initialItems,
+  initialDetails,
+  initialReportMeta,
   onDone,
 }: {
   members: Member[];
   editingReport: Report | null;
   initialMemberId: string;
   initialFiles?: File[];
+  /** 新建向导前置步骤（如自动识别）产生的初始检查项目，仅新建报告时注入；编辑时忽略。 */
+  initialItems?: ItemDraft[];
+  /** 新建向导前置步骤（如自动识别）产生的初始附加元数据，仅新建报告时注入；编辑时忽略。 */
+  initialDetails?: ReportDetail[];
+  /** 新建向导前置步骤（如自动识别）产生的初始报告元数据（医院/日期/类型/标题/备注），
+   *  仅新建报告时挂载注入一次，注入后用户仍可编辑。 */
+  initialReportMeta?: ReportScanMeta;
   onDone: (saved: boolean) => void;
 }) {
   const [memberId, setMemberId] = useState(editingReport?.memberId ?? initialMemberId);
   const [hospital, setHospital] = useState(editingReport?.hospital ?? '');
   const [reportDate, setReportDate] = useState(editingReport?.reportDate ?? todayISO());
   const [reportType, setReportType] = useState(editingReport?.reportType ?? '');
+  const [testPurpose, setTestPurpose] = useState(editingReport?.testPurpose ?? '');
   const [title, setTitle] = useState(editingReport?.title ?? '');
   const [notes, setNotes] = useState(editingReport?.notes ?? '');
   const [details, setDetails] = useState<ReportDetail[]>(editingReport?.details ?? []);
@@ -153,6 +164,33 @@ export function ReportForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // 新建向导前置步骤（自动识别）注入的初始报告元数据 / 项目 / 附加元数据：仅在「新建」且非编辑时写入一次。
+  // 注入的识别条目恒为待确认；识别出的附加元数据默认展开以便核对。
+  const initialItemsHandled = useRef(false);
+  useEffect(() => {
+    if (initialItemsHandled.current) return;
+    initialItemsHandled.current = true;
+    if (editingReport) return;
+    // 整张报告识别出的报告信息候选：仅非空字段覆盖默认值（用户之后仍可改）
+    if (initialReportMeta) {
+      if (initialReportMeta.hospital) setHospital(initialReportMeta.hospital);
+      if (initialReportMeta.reportDate) setReportDate(initialReportMeta.reportDate);
+      if (initialReportMeta.reportType) setReportType(initialReportMeta.reportType);
+      if (initialReportMeta.testPurpose) setTestPurpose(initialReportMeta.testPurpose);
+      if (initialReportMeta.title) setTitle(initialReportMeta.title);
+      if (initialReportMeta.notes) setNotes(initialReportMeta.notes);
+    }
+    if (initialItems && initialItems.length > 0) {
+      setItems(initialItems);
+      setAllConfirmed(initialItems.every((it) => it.confirmed));
+    }
+    if (initialDetails && initialDetails.length > 0) {
+      setDetails(initialDetails);
+      setDetailsOpen(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const setItem = (i: number, patch: Partial<ItemDraft>) =>
     setItems((list) => list.map((it, idx) => (idx === i ? { ...it, ...patch } : it)));
 
@@ -174,6 +212,7 @@ export function ReportForm({
         hospital: hospital.trim(),
         reportDate,
         reportType: reportType.trim(),
+        testPurpose: testPurpose.trim(),
         title: title.trim(),
         notes: notes.trim(),
         details: details
@@ -267,6 +306,13 @@ export function ReportForm({
               </option>
             ))}
           </select>
+        </Field>
+        <Field label="检验目的">
+          <input
+            value={testPurpose}
+            onChange={(e) => setTestPurpose(e.target.value)}
+            placeholder="如：血常规检查"
+          />
         </Field>
         <Field label="标题">
           <input
@@ -380,7 +426,7 @@ export function ReportForm({
           <ReportRecognitionPanel
             attachments={newAttachments}
             memberSelected={memberId !== ''}
-            initialReportMeta={{ hospital, reportDate, reportType, title, notes }}
+            initialReportMeta={{ hospital, reportDate, reportType, testPurpose, title, notes }}
             onImport={(cands) => {
               setItems((list) => [...list, ...cands.map(ocrCandidateToDraft)]);
               setAllConfirmed(false);
@@ -393,6 +439,7 @@ export function ReportForm({
                     if (scan.report.hospital) setHospital(scan.report.hospital);
                     if (scan.report.reportDate) setReportDate(scan.report.reportDate);
                     if (scan.report.reportType) setReportType(scan.report.reportType);
+                    if (scan.report.testPurpose) setTestPurpose(scan.report.testPurpose);
                     if (scan.report.title) setTitle(scan.report.title);
                     if (scan.report.notes) setNotes(scan.report.notes);
                     if (scan.details.length > 0) {
