@@ -1,11 +1,4 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import {
-  buildRecognizePayload,
-  extractRecognizeContent,
-  readRecognizeServiceConfig,
-  recognizeErrorMessage,
-} from '../recognizeServer';
-
 const MAX_BODY = 512 * 1024;
 
 function requestId(req: VercelRequest): string {
@@ -70,6 +63,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   };
   try {
     id = requestId(req);
+    // Load shared server logic inside the guarded path so module-resolution or
+    // runtime initialization failures become structured JSON diagnostics.
+    // Shared implementation: from '../recognizeServer'
+    const {
+      buildRecognizePayload,
+      extractRecognizeContent,
+      readRecognizeServiceConfig,
+      recognizeErrorMessage,
+    } = await import('../recognizeServer');
     if (req.method !== 'POST')
       return error(res, 405, '该接口仅支持 POST 请求。', 'METHOD_NOT_ALLOWED', id, {
         stage: 'method-check',
