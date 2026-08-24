@@ -774,7 +774,7 @@ export default defineConfig(({ mode }) => {
     },
     test: {
       environment: 'node',
-      include: ['src/**/*.test.ts', 'viteConfigHelpers.test.ts'],
+      include: ['src/**/*.test.ts', 'api/**/*.test.ts', 'viteConfigHelpers.test.ts'],
     },
   };
 });

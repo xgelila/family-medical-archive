@@ -1,4 +1,11 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import {
+  buildRecognizePayload,
+  extractRecognizeContent,
+  readRecognizeServiceConfig,
+  recognizeErrorMessage,
+} from '../recognizeServer';
+
 const MAX_BODY = 512 * 1024;
 
 function requestId(req: VercelRequest): string {
@@ -63,15 +70,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   };
   try {
     id = requestId(req);
-    // Load shared server logic inside the guarded path so module-resolution or
-    // runtime initialization failures become structured JSON diagnostics.
-    // Shared implementation: from '../recognizeServer'
-    const {
-      buildRecognizePayload,
-      extractRecognizeContent,
-      readRecognizeServiceConfig,
-      recognizeErrorMessage,
-    } = await import('../recognizeServer');
     if (req.method !== 'POST')
       return error(res, 405, '该接口仅支持 POST 请求。', 'METHOD_NOT_ALLOWED', id, {
         stage: 'method-check',
@@ -83,15 +81,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       model: config.model,
       endpoint: config.endpoint,
     };
-    if (!config.apiKey)
-      return error(
-        res,
-        503,
-        '识别功能尚未启用：请配置服务端 DEEPSEEK_API_KEY。',
-        'MISSING_API_KEY',
-        id,
-        context,
-      );
     context = { ...context, stage: 'request-parse' };
     const raw = typeof req.body === 'string' ? req.body : JSON.stringify(req.body ?? {});
     if (Buffer.byteLength(raw, 'utf8') > MAX_BODY)
@@ -116,6 +105,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     if (typeof body.text !== 'string' || !body.text.trim())
       return error(res, 400, '提交内容格式不正确，请重新识别后重试。', 'INVALID_TEXT', id, context);
+    if (!config.apiKey)
+      return error(
+        res,
+        503,
+        '识别功能尚未启用：请配置服务端 DEEPSEEK_API_KEY。',
+        'MISSING_API_KEY',
+        id,
+        context,
+      );
     context = { ...context, stage: 'upstream-request' };
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 60_000);
