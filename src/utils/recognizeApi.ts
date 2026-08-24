@@ -309,10 +309,11 @@ export async function parseRecognizedText(
     }
 
     if (!res.ok) {
-      const serverMessage =
+      const serverError =
         payload && typeof payload === 'object' && 'error' in payload
-          ? (payload as { error?: { message?: unknown } }).error?.message
+          ? (payload as { error?: { message?: unknown; code?: unknown } }).error
           : undefined;
+      const serverMessage = serverError?.message;
       const msg =
         typeof serverMessage === 'string' && serverMessage !== ''
           ? serverMessage
