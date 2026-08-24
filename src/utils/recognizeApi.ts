@@ -311,7 +311,8 @@ export async function parseRecognizedText(
     if (!res.ok) {
       const serverError =
         payload && typeof payload === 'object' && 'error' in payload
-          ? (payload as { error?: { message?: unknown; code?: unknown } }).error
+          ? (payload as { error?: { message?: unknown; code?: unknown; errorCode?: unknown } })
+              .error
           : undefined;
       const serverMessage = serverError?.message;
       const msg =
@@ -325,7 +326,12 @@ export async function parseRecognizedText(
         buildDebug(startedAt, {
           status: res.status,
           timeout: false,
-          errorCode: 'http',
+          errorCode:
+            typeof serverError?.errorCode === 'string'
+              ? serverError.errorCode
+              : typeof serverError?.code === 'string'
+                ? serverError.code
+                : 'http',
           errorMessage: msg,
           server: (payload as { debug?: unknown } | null)?.debug,
         }),
