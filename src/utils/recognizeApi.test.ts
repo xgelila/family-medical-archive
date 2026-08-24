@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { DEFAULT_RECOGNIZE_TIMEOUT_MS, parseRecognizedText, StructureError } from './recognizeApi';
+import {
+  DEFAULT_RECOGNIZE_TIMEOUT_MS,
+  parseRecognizedText,
+  RECOGNIZE_API_PATH,
+  StructureError,
+} from './recognizeApi';
 
 /**
  * 「识别数据」客户端（同源代理）测试：
@@ -25,6 +30,17 @@ function readCapturedBody(): Record<string, unknown> {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+});
+
+describe('生产 API 路径源级契约', () => {
+  it('生产与开发都使用同源绝对 API 路径，且不依赖本地代理文案', async () => {
+    expect(RECOGNIZE_API_PATH).toBe('/api/recognize-report');
+    const source = await import('node:fs').then(({ readFileSync }) =>
+      readFileSync(new URL('./recognizeApi.ts', import.meta.url), 'utf8'),
+    );
+    expect(source).toContain("fetch(RECOGNIZE_API_PATH");
+    expect(source).not.toContain('仅本机开发模式支持');
+  });
 });
 
 describe('parseRecognizedText（同源代理）', () => {

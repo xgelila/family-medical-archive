@@ -201,6 +201,11 @@ export interface SerializedAttachment {
 export const EXPORT_FORMAT = 'family-medical-archive';
 export const EXPORT_VERSION = 1;
 
+export interface ExportIntegrity {
+  algorithm: 'SHA-256';
+  payloadHash: string;
+}
+
 export interface ExportPayload {
   format: typeof EXPORT_FORMAT;
   version: typeof EXPORT_VERSION;
@@ -214,6 +219,8 @@ export interface ExportPayload {
   labelMappings?: LabelMapping[];
   /** 可选：用户自定义报告类型（旧版导出文件缺省；导入时缺省为空数组，不报错） */
   customReportTypes?: CustomReportType[];
+  /** v1-compatible optional integrity metadata; backups remain unencrypted plaintext. */
+  integrity?: ExportIntegrity;
 }
 
 export const EMPTY_MEMBER: Member = {

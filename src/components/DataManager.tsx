@@ -101,13 +101,18 @@ export function DataManager({ bump }: { bump: () => void }) {
     try {
       const text = await file.text();
       const obj = JSON.parse(text) as unknown;
-      if (!window.confirm('导入将【覆盖】当前本机全部数据（成员/报告/条目/附件）。确定继续吗？'))
-        return;
+      const candidate = obj as { members?: unknown[]; reports?: unknown[]; items?: unknown[]; attachments?: unknown[] };
+      const isEmptyBackup = [candidate.members, candidate.reports, candidate.items, candidate.attachments]
+        .every((v) => Array.isArray(v) && v.length === 0);
+      const confirmText = isEmptyBackup
+        ? '警告：这是一个合法但完全为空的备份。导入将【覆盖并清空】当前本机全部数据，且不可自动恢复。确定继续吗？'
+        : '导入将【覆盖】当前本机全部数据（成员/报告/条目/附件）。确定继续吗？';
+      if (!window.confirm(confirmText)) return;
       const result: ImportResult = await importPayload(obj);
       if (result.ok) {
         setMessage({
           tone: 'ok',
-          text: `导入成功：${result.summary.members} 位成员、${result.summary.reports} 份报告、${result.summary.items} 项条目、${result.summary.attachments} 个附件。`,
+          text: `导入成功：${result.summary.members} 位成员、${result.summary.reports} 份报告、${result.summary.items} 项条目、${result.summary.attachments} 个附件。${result.warnings.length ? ` 警告：${result.warnings.join('；')}` : ''}`,
         });
         bump();
       } else {

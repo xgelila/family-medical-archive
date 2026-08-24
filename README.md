@@ -54,7 +54,7 @@ npm run dev
 - **备上游（可选）OpenCode Go（fallback）**：`OPENCODE_GO_API_KEY`、`OPENCODE_GO_ENDPOINT`（默认 `https://opencode.ai/zen/go/v1/chat/completions`）、`OPENCODE_GO_MODEL`（默认 `deepseek-v4-flash`）、`OPENCODE_GO_AUTH_HEADER` / `OPENCODE_GO_AUTH_SCHEME`（默认 `Authorization` + `Bearer`）。**优先级与 fallback 规则**：每次识别总是先请求主上游直连 DeepSeek；**仅当** DeepSeek 返回 `429`/`402` 或响应体出现明显的额度/配额耗尽（额度不足 / quota exhausted 等）时才自动切到 OpenCode Go；其它错误（401/403/500/502/504/网络/超时）**不触发** fallback，仍返回原有清洗错误。未配置 `OPENCODE_GO_API_KEY` 则不启用 fallback。备上游失败同样返回其清洗错误（不再二次 fallback）。`DEEPSEEK_*` 与 `OPENCODE_GO_*` 一样只在本机 Node 侧读取，不注入浏览器/构建产物；识别时仍只发送 OCR 文本。
 - **旧变量兼容**：若暂时没重命名，本地代理仍会兼容读取旧的 `VITE_OPENCODE_GO_*`，但前端源码已完全不引用它们；请尽快按上面重命名。
 - 这些变量的值**只在 Vite dev 的 Node 侧**使用：不进入 bundle、不写入健康数据、不在界面显示。
-- **生产构建（`npm run build` + `npm run preview` / 静态部署）说明**：Vite dev 的本地代理**只适合本机开发**。`dist/` 是纯静态产物，`/api/recognize-report` 在此类部署下**不可用**（「识别数据」会提示接口不可用）。如需对外/持续使用，请自建后端网关：浏览器只请求你自己的后端，由后端持有 Key 并转发（本仓库未包含该后端）。
+- **Vercel 生产部署**：仓库内的 `api/recognize-report.ts` 会作为同源 `/api/recognize-report` Serverless Function，浏览器无需改变请求地址；请在 Vercel Project Settings → Environment Variables 配置服务端 `DEEPSEEK_API_KEY`（不要使用 `VITE_` 前缀，也不要把 Key 写入前端变量），保存后重新部署。可选配置 `DEEPSEEK_ENDPOINT`、`DEEPSEEK_MODEL`、`DEEPSEEK_AUTH_HEADER`、`DEEPSEEK_AUTH_SCHEME`。Vite dev 仍由本地 Node 中间件处理。
 
 ## 开发
 

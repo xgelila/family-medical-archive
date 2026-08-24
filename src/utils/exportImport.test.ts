@@ -29,6 +29,7 @@ function report(id: string, attachmentIds: string[]): Report {
     hospital: '甲医院',
     reportDate: '2024-01-01',
     reportType: '年度体检',
+    testPurpose: '年度血液检查',
     title: '报告',
     notes: '',
     attachmentIds,
@@ -98,6 +99,17 @@ describe('validatePayload', () => {
     expect(validatePayload({ format: 'other' }).ok).toBe(false);
     expect(validatePayload({ ...payload(), version: 99 }).ok).toBe(false);
     expect(validatePayload({ ...payload(), items: undefined }).ok).toBe(false);
+  });
+});
+
+describe('buildCleanImport 报告字段与关联校验', () => {
+  it('导入保留 testPurpose', async () => {
+    const clean = await buildCleanImport(payload({ reports: [report('r1', [])] }));
+    expect(clean.reports[0].testPurpose).toBe('年度血液检查');
+  });
+  it('拒绝报告缺失成员和项目缺失报告', () => {
+    expect(validatePayload(payload({ reports: [{ ...report('r1', []), memberId: 'ghost' }] })).ok).toBe(false);
+    expect(validatePayload(payload({ items: [item({ reportId: 'ghost' })] })).ok).toBe(false);
   });
 });
 

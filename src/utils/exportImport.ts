@@ -24,9 +24,22 @@ export function blobToDataUrl(blob: Blob): Promise<string> {
 }
 
 export async function dataUrlToBlob(dataUrl: string): Promise<Blob> {
-  const res = await fetch(dataUrl);
-  if (!res.ok) throw new Error('附件数据解析失败');
-  return res.blob();
+  // Never fetch arbitrary URLs during import: backups must contain self-contained data URLs.
+  if (typeof dataUrl !== 'string' || !dataUrl.startsWith('data:')) throw new Error('附件必须是 data URL');
+  const match = /^data:([!#$%&'*+\-.^_`|~0-9A-Za-z]+\/[!#$%&'*+\-.^_`|~0-9A-Za-z]+)(;base64)?,(.*)$/s.exec(dataUrl);
+  if (!match || match[2] !== ';base64' || match[3] === '') throw new Error('附件 data URL 格式无效');
+  const mime = match[1];
+  const encoded = match[3].replace(/\s/g, '');
+  if (!/^[A-Za-z0-9+/]*={0,2}$/.test(encoded) || encoded.length % 4 !== 0) throw new Error('附件 base64 无效');
+  const raw = atob(encoded);
+  const bytes = Uint8Array.from(raw, (c) => c.charCodeAt(0));
+  return new Blob([bytes], { type: mime });
+}
+
+async function payloadHash(payload: Omit<ExportPayload, 'integrity'>): Promise<string> {
+  const bytes = new TextEncoder().encode(JSON.stringify(payload));
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
 export function downloadJson(payload: ExportPayload, filename: string): void {
@@ -52,19 +65,22 @@ export async function buildExport(): Promise<ExportPayload> {
       db.labelMappings.toArray(),
       db.customReportTypes.toArray(),
     ]);
-  const serialized: SerializedAttachment[] = await Promise.all(
-    attachments.map(async (a) => ({
-      id: a.id,
-      reportId: a.reportId,
-      name: a.name,
-      mimeType: a.mimeType,
-      size: a.size,
-      kind: a.kind,
-      createdAt: a.createdAt,
+  if (attachments.length > 500) throw new Error('导出失败：附件数量超过 500 个。');
+  const serialized: SerializedAttachment[] = [];
+  let totalBytes = 0;
+  for (const a of attachments) {
+    if (a.size > 25 * 1024 * 1024 || a.blob.size > 25 * 1024 * 1024)
+      throw new Error(`导出失败：附件「${a.name || a.id}」超过单个 25 MiB 限制。`);
+    if (totalBytes + a.blob.size > 200 * 1024 * 1024)
+      throw new Error('导出失败：附件总大小超过 200 MiB 限制。');
+    totalBytes += a.blob.size;
+    serialized.push({
+      id: a.id, reportId: a.reportId, name: a.name, mimeType: a.mimeType,
+      size: a.size, kind: a.kind, createdAt: a.createdAt,
       dataUrl: await blobToDataUrl(a.blob),
-    })),
-  );
-  return {
+    });
+  }
+  const result = {
     format: EXPORT_FORMAT,
     version: EXPORT_VERSION,
     exportedAt: new Date().toISOString(),
@@ -75,11 +91,13 @@ export async function buildExport(): Promise<ExportPayload> {
     attachments: serialized,
     labelMappings,
     customReportTypes,
-  };
+  } satisfies Omit<ExportPayload, 'integrity'>;
+  return { ...result, integrity: { algorithm: 'SHA-256' as const, payloadHash: await payloadHash(result) } };
+
 }
 
 export type ImportResult =
-  | { ok: true; summary: { members: number; reports: number; items: number; attachments: number } }
+  | { ok: true; summary: { members: number; reports: number; items: number; attachments: number; skippedAttachments: number }; warnings: string[] }
   | { ok: false; error: string };
 
 export function validatePayload(
@@ -95,13 +113,29 @@ export function validatePayload(
       error: `不支持的数据版本：${String(p.version)}（当前支持 v${EXPORT_VERSION}）。`,
     };
   if (
-    !Array.isArray(p.members) ||
-    !Array.isArray(p.reports) ||
-    !Array.isArray(p.items) ||
-    !Array.isArray(p.attachments)
-  ) {
-    return { ok: false, error: '数据结构不完整（缺少 members/reports/items/attachments 数组）。' };
-  }
+    !Array.isArray(p.members) || !Array.isArray(p.reports) || !Array.isArray(p.items) || !Array.isArray(p.attachments)
+  ) return { ok: false, error: '数据结构不完整（缺少 members/reports/items/attachments 数组）。' };
+  const ids = (arr: unknown[], field: string): boolean => {
+    const seen = new Set<string>();
+    for (const value of arr) {
+      if (!value || typeof value !== 'object' || typeof (value as Record<string, unknown>)[field] !== 'string') return false;
+      const id = (value as Record<string, unknown>)[field] as string;
+      if (!id || seen.has(id)) return false;
+      seen.add(id);
+    }
+    return true;
+  };
+  if (!ids(p.members, 'id') || !ids(p.reports, 'id') || !ids(p.items, 'id') || !ids(p.attachments, 'id'))
+    return { ok: false, error: '数据包含缺失或重复 ID。' };
+  const memberIds = new Set(p.members.map((m) => m.id));
+  const reportIds = new Set(p.reports.map((r) => r.id));
+  if (p.reports.some((r) => typeof r.memberId !== 'string' || !memberIds.has(r.memberId)))
+    return { ok: false, error: '报告关联的成员不存在。' };
+  if (p.items.some((i) => typeof i.reportId !== 'string' || !reportIds.has(i.reportId)))
+    return { ok: false, error: '检查项目关联的报告不存在。' };
+  if (p.attachments.length > 500) return { ok: false, error: '附件数量超过限制。' };
+  if (p.integrity && (p.integrity.algorithm !== 'SHA-256' || typeof p.integrity.payloadHash !== 'string'))
+    return { ok: false, error: '备份完整性信息无效。' };
   return { ok: true, payload: p as ExportPayload };
 }
 
@@ -116,6 +150,7 @@ export interface CleanImportData {
   attachments: AttachmentRecord[];
   labelMappings: LabelMapping[];
   customReportTypes: CustomReportType[];
+  skippedAttachments: number;
 }
 
 /**
@@ -166,6 +201,7 @@ export async function buildCleanImport(payload: ExportPayload): Promise<CleanImp
       } : undefined,
       hospital: typeof r.hospital === 'string' ? r.hospital : '未填写',
       reportDate: typeof r.reportDate === 'string' ? r.reportDate : '',
+      testPurpose: typeof r.testPurpose === 'string' ? r.testPurpose : '',
       reportTypes: Array.isArray(r.reportTypes)
         ? r.reportTypes.filter((type): type is string => typeof type === 'string')
         : (typeof r.reportType === 'string' && r.reportType ? [r.reportType] : []),
@@ -209,11 +245,16 @@ export async function buildCleanImport(payload: ExportPayload): Promise<CleanImp
   // 附件：reportId 不在已导入报告集合中 → 跳过（避免生成孤立附件）；数据损坏 → 跳过。
   const attachmentRefs = new Map<string, { id: string; reportId: string }>(); // 原 id → 最终导入信息
   const cleanAttachments: AttachmentRecord[] = [];
+  let totalAttachmentBytes = 0;
+  let skippedAttachments = 0;
   for (const a of attachments) {
+    if (cleanAttachments.length >= 500) { skippedAttachments += attachments.length - cleanAttachments.length; break; }
     const reportId = ensureId(a.reportId, 'r');
-    if (!reportIds.has(reportId)) continue;
+    if (!reportIds.has(reportId)) { skippedAttachments++; continue; }
     try {
       const blob = await dataUrlToBlob(a.dataUrl);
+      if (blob.size > 25 * 1024 * 1024 || totalAttachmentBytes + blob.size > 200 * 1024 * 1024) { skippedAttachments++; continue; }
+      totalAttachmentBytes += blob.size;
       const id = ensureId(a.id, 'a');
       attachmentRefs.set(typeof a.id === 'string' && a.id !== '' ? a.id : id, { id, reportId });
       cleanAttachments.push({
@@ -228,6 +269,7 @@ export async function buildCleanImport(payload: ExportPayload): Promise<CleanImp
         createdAt: typeof a.createdAt === 'number' ? a.createdAt : Date.now(),
       });
     } catch {
+      skippedAttachments++;
       // 附件损坏则跳过
     }
   }
@@ -306,6 +348,7 @@ export async function buildCleanImport(payload: ExportPayload): Promise<CleanImp
     attachments: cleanAttachments,
     labelMappings: cleanLabelMappings,
     customReportTypes: cleanCustomReportTypes,
+    skippedAttachments,
   };
 }
 
@@ -314,6 +357,13 @@ export async function importPayload(obj: unknown): Promise<ImportResult> {
   const v = validatePayload(obj);
   if (!v.ok) return v;
   try {
+    // v1 旧备份可无 integrity；一旦声明则必须严格匹配，防止损坏/篡改后覆盖本地数据。
+    if (v.payload.integrity) {
+      const { integrity: _integrity, ...unsigned } = v.payload;
+      const actual = await payloadHash(unsigned);
+      if (actual !== v.payload.integrity.payloadHash.toLowerCase())
+        return { ok: false, error: '导入拒绝：备份完整性校验失败（SHA-256 不匹配），文件可能已损坏或被修改。' };
+    }
     const clean = await buildCleanImport(v.payload);
     await db.transaction(
       'rw',
@@ -343,7 +393,11 @@ export async function importPayload(obj: unknown): Promise<ImportResult> {
         reports: clean.reports.length,
         items: clean.items.length,
         attachments: clean.attachments.length,
+        skippedAttachments: clean.skippedAttachments,
       },
+      warnings: clean.skippedAttachments > 0
+        ? [`有 ${clean.skippedAttachments} 个附件损坏、关联无效或超出限制，已跳过。`]
+        : [],
     };
   } catch (e) {
     return { ok: false, error: `导入失败：${e instanceof Error ? e.message : String(e)}` };

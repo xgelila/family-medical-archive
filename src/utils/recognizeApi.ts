@@ -12,7 +12,7 @@
  *   提示（不含技术栈名称、不含 Key、不含正文）；
  * - 代理 2xx 只返回精简的 { content }（代理已在上游侧把 choices[0].message.content
  *   单独取出，不透传 model/usage 等无关字段）；本模块同时兼容旧式完整 choices 响应；
- * - 仅本机开发（Vite dev server）可用；preview/静态部署下该接口不可用。
+ * - 开发环境由 Vite Node 中间件处理；Vercel 生产环境由 api/recognize-report.ts 处理。
  */
 
 import type { RecognizeMode } from '../shared/recognizeProtocol';
@@ -148,6 +148,9 @@ function buildDebug(
  * 服务端会先返回清洗后的 504 错误，客户端再把它展示为自然语言提示，
  * 而不是让客户端先报一个笼统的「处理超时」。
  */
+/** 生产与开发共用的同源 API 路径；不得改为 Vite-only 代理地址。 */
+export const RECOGNIZE_API_PATH = '/api/recognize-report';
+
 export const DEFAULT_RECOGNIZE_TIMEOUT_MS = 70_000;
 
 /** 「识别数据」结构化错误（Error 子类，message 恒为可直接展示的中文提示）。 */
@@ -187,7 +190,7 @@ function statusMessage(status: number): string {
     case 403:
       return '识别服务校验未通过：请检查本机服务配置（见项目 README 或「隐私说明」）后重启。';
     case 404:
-      return '识别接口不可用：此构建未启用本地识别代理（仅本机开发模式支持）。';
+      return '识别接口不可用：请检查部署的 API 路由后重试。';
     case 413:
       return '提交的内容过大，请裁剪图片后重试。';
     case 429:
@@ -248,7 +251,7 @@ export async function parseRecognizedText(
   try {
     let res: Response;
     try {
-      res = await fetch('/api/recognize-report', {
+      res = await fetch(RECOGNIZE_API_PATH, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
