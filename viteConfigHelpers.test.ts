@@ -1,5 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  DEFAULT_RECOGNIZE_ENDPOINT,
+  DEFAULT_RECOGNIZE_MODEL,
+  normalizeRecognizeEndpoint,
+  readRecognizeServiceConfig,
+} from './recognizeServer';
+import {
   buildUpstreamPayload,
   callUpstream,
   extractUpstreamContent,
@@ -19,6 +25,40 @@ import {
  * - 只传模拟 env 记录，**绝不读取真实环境 / 密钥**（.env.local / process.env）；
  * - 覆盖：默认配置恢复、变量优先级、错误清洗映射、2xx 响应内容提取、上游请求体构造。
  */
+
+describe('共享 DEEPSEEK 配置契约（本地代理与 Vercel 共用）', () => {
+  it('默认值、鉴权和模型在两端一致', () => {
+    const shared = readRecognizeServiceConfig({});
+    const local = readDeepSeekConfig({});
+    expect(shared).toEqual({
+      apiKey: '',
+      endpoint: DEFAULT_RECOGNIZE_ENDPOINT,
+      model: DEFAULT_RECOGNIZE_MODEL,
+      authHeader: 'Authorization',
+      authValue: 'Bearer ',
+    });
+    expect(local).toMatchObject(shared);
+  });
+
+  it('base URL 规范化为 OpenAI-compatible chat completions endpoint', () => {
+    expect(normalizeRecognizeEndpoint('https://api.deepseek.com')).toBe(DEFAULT_RECOGNIZE_ENDPOINT);
+    expect(normalizeRecognizeEndpoint('https://api.deepseek.com/')).toBe(
+      DEFAULT_RECOGNIZE_ENDPOINT,
+    );
+    expect(normalizeRecognizeEndpoint(DEFAULT_RECOGNIZE_ENDPOINT)).toBe(DEFAULT_RECOGNIZE_ENDPOINT);
+  });
+
+  it('自定义同名变量在本地和 Vercel 配置中产生完全相同结果', () => {
+    const env = {
+      DEEPSEEK_API_KEY: 'key',
+      DEEPSEEK_ENDPOINT: 'https://provider.example/v1',
+      DEEPSEEK_MODEL: 'local-model',
+      DEEPSEEK_AUTH_HEADER: 'X-API-Key',
+      DEEPSEEK_AUTH_SCHEME: '',
+    };
+    expect(readDeepSeekConfig(env)).toMatchObject(readRecognizeServiceConfig(env));
+  });
+});
 
 describe('readServerConfig（默认配置恢复与变量优先级）', () => {
   it('默认 endpoint 恢复为 https://opencode.ai/zen/go/v1/chat/completions，model 为 deepseek-v4-flash', () => {
@@ -188,7 +228,10 @@ describe('readUpstreamTimeouts（每上游独立超时预算，仅服务端读�
       readUpstreamTimeouts({ OPENCODE_GO_TIMEOUT_MS: 'abc', DEEPSEEK_TIMEOUT_MS: '0' }),
     ).toEqual({ primaryTimeoutMs: 25_000, fallbackTimeoutMs: 20_000 });
     expect(
-      readUpstreamTimeouts({ VITE_OPENCODE_GO_TIMEOUT_MS: '5000', VITE_DEEPSEEK_TIMEOUT_MS: '5000' }),
+      readUpstreamTimeouts({
+        VITE_OPENCODE_GO_TIMEOUT_MS: '5000',
+        VITE_DEEPSEEK_TIMEOUT_MS: '5000',
+      }),
     ).toEqual({ primaryTimeoutMs: 25_000, fallbackTimeoutMs: 20_000 });
   });
 });
@@ -242,7 +285,7 @@ describe('readDeepSeekConfig（备上游独立配置）', () => {
       DEEPSEEK_MODEL: 'custom-model-x',
     });
     expect(cfg.apiKey).toBe('ds-key');
-    expect(cfg.endpoint).toBe('https://example.invalid/v1');
+    expect(cfg.endpoint).toBe('https://example.invalid/v1/chat/completions');
     expect(cfg.model).toBe('custom-model-x');
     expect(cfg.authValue).toBe('Bearer ds-key');
     // 不读取 OpenCode Go 的变量
@@ -279,14 +322,20 @@ describe('isQuotaFailure（fallback 触发条件限定）', () => {
 
 describe('callUpstream（单次上游请求）', () => {
   it('2xx 提取 choices[0].message.content，outcome=success', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => okContent('结果')));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => okContent('结果')),
+    );
     const r = await callUpstream(primaryCfg, PAYLOAD, SIGNAL);
     expect(r).toEqual({ ok: true, content: '结果', status: 200, outcome: 'success' });
     vi.unstubAllGlobals();
   });
 
   it('非 2xx 返回状态与额度判定结果，不透传正文；额度 → outcome=quota-fallback', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => statusBody(429, 'rate limit')));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => statusBody(429, 'rate limit')),
+    );
     const r = await callUpstream(primaryCfg, PAYLOAD, SIGNAL);
     expect(r).toEqual({
       ok: false,
@@ -303,7 +352,10 @@ describe('callUpstream（单次上游请求）', () => {
       [403, 'forbidden'],
       [500, 'internal error'],
     ] as Array<[number, string]>) {
-      vi.stubGlobal('fetch', vi.fn(async () => statusBody(status, body)));
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async () => statusBody(status, body)),
+      );
       const r = await callUpstream(primaryCfg, PAYLOAD, SIGNAL);
       expect(r).toEqual({
         ok: false,
@@ -316,7 +368,10 @@ describe('callUpstream（单次上游请求）', () => {
   });
 
   it('fetch 网络层抛错（非中断）→ outcome=network-error、status 502', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => Promise.reject(new TypeError('Failed to fetch'))));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => Promise.reject(new TypeError('Failed to fetch'))),
+    );
     const r = await callUpstream(primaryCfg, PAYLOAD, SIGNAL);
     expect(r).toEqual({
       ok: false,
@@ -557,10 +612,7 @@ describe('recognizeWithFallbackDebug（安全 debug 元信息，不泄露密钥�
       SIGNAL,
     );
     expect(result).toEqual({ content: '{"items":[{"name":"y"}]}' });
-    expect(calls).toEqual([
-      'https://api.deepseek.com/chat/completions',
-      OPENCODE_ENDPOINT,
-    ]);
+    expect(calls).toEqual(['https://api.deepseek.com/chat/completions', OPENCODE_ENDPOINT]);
     expect(debug.upstreamTried).toEqual(['deepseek', 'opencode-go']);
     expect(debug.selectedUpstream).toBe('opencode-go');
     expect(debug.failedUpstream).toBe('deepseek');
@@ -568,35 +620,38 @@ describe('recognizeWithFallbackDebug（安全 debug 元信息，不泄露密钥�
     vi.unstubAllGlobals();
   });
 
-  it('主上游成功：upstreamTried=[' + "'opencode-go'" + ']，selectedUpstream=opencode-go，无 failed/fallback', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => okContent('{"items":[]}')),
-    );
-    const { result, debug } = await recognizeWithFallbackDebug(
-      primaryCfg,
-      deepSeekCfg('ds-key'),
-      PAYLOAD,
-      SIGNAL,
-    );
-    expect(result).toEqual({ content: '{"items":[]}' });
-    expect(debug.upstreamTried).toEqual(['opencode-go']);
-    expect(debug.selectedUpstream).toBe('opencode-go');
-    expect(debug.failedUpstream).toBeNull();
-    expect(debug.fallbackReason).toBeNull();
-    expect(debug.durationMs).toBeGreaterThanOrEqual(0);
-    // 主上游（OpenCode Go）也能显示其请求模型名与请求地址（安全字段）
-    expect(debug.selectedUpstreamModel).toBe('deepseek-v4-flash');
-    expect(debug.selectedUpstreamEndpoint).toBe(
-      'https://opencode.ai/zen/go/v1/chat/completions',
-    );
-    expect(debug.attempts[0]).toMatchObject({
-      upstream: 'opencode-go',
-      model: 'deepseek-v4-flash',
-      endpoint: 'https://opencode.ai/zen/go/v1/chat/completions',
-    });
-    vi.unstubAllGlobals();
-  });
+  it(
+    '主上游成功：upstreamTried=[' +
+      "'opencode-go'" +
+      ']，selectedUpstream=opencode-go，无 failed/fallback',
+    async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async () => okContent('{"items":[]}')),
+      );
+      const { result, debug } = await recognizeWithFallbackDebug(
+        primaryCfg,
+        deepSeekCfg('ds-key'),
+        PAYLOAD,
+        SIGNAL,
+      );
+      expect(result).toEqual({ content: '{"items":[]}' });
+      expect(debug.upstreamTried).toEqual(['opencode-go']);
+      expect(debug.selectedUpstream).toBe('opencode-go');
+      expect(debug.failedUpstream).toBeNull();
+      expect(debug.fallbackReason).toBeNull();
+      expect(debug.durationMs).toBeGreaterThanOrEqual(0);
+      // 主上游（OpenCode Go）也能显示其请求模型名与请求地址（安全字段）
+      expect(debug.selectedUpstreamModel).toBe('deepseek-v4-flash');
+      expect(debug.selectedUpstreamEndpoint).toBe('https://opencode.ai/zen/go/v1/chat/completions');
+      expect(debug.attempts[0]).toMatchObject({
+        upstream: 'opencode-go',
+        model: 'deepseek-v4-flash',
+        endpoint: 'https://opencode.ai/zen/go/v1/chat/completions',
+      });
+      vi.unstubAllGlobals();
+    },
+  );
 
   it('额度类失败回退到 DeepSeek 成功：upstreamTried 含两者，selected=deepseek，failed=opencode-go，fallbackReason=quota', async () => {
     vi.stubGlobal(
@@ -690,7 +745,14 @@ describe('recognizeWithFallbackDebug（安全 debug 元信息，不泄露密钥�
     // 安全字段（模型名/请求地址）被展示；鉴权/密钥类字段绝不出现
     expect(json).toContain('deepseek-v4-flash');
     expect(json).toContain('https://opencode.ai/zen/go/v1/chat/completions');
-    for (const forbidden of ['apiKey', 'authHeader', 'authValue', 'sk-', 'Bearer oc-key', 'Bearer ds-key']) {
+    for (const forbidden of [
+      'apiKey',
+      'authHeader',
+      'authValue',
+      'sk-',
+      'Bearer oc-key',
+      'Bearer ds-key',
+    ]) {
       expect(json).not.toContain(forbidden);
     }
     vi.unstubAllGlobals();

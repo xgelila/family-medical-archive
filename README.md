@@ -54,7 +54,7 @@ npm run dev
 - **备上游（可选）OpenCode Go（fallback）**：`OPENCODE_GO_API_KEY`、`OPENCODE_GO_ENDPOINT`（默认 `https://opencode.ai/zen/go/v1/chat/completions`）、`OPENCODE_GO_MODEL`（默认 `deepseek-v4-flash`）、`OPENCODE_GO_AUTH_HEADER` / `OPENCODE_GO_AUTH_SCHEME`（默认 `Authorization` + `Bearer`）。**优先级与 fallback 规则**：每次识别总是先请求主上游直连 DeepSeek；**仅当** DeepSeek 返回 `429`/`402` 或响应体出现明显的额度/配额耗尽（额度不足 / quota exhausted 等）时才自动切到 OpenCode Go；其它错误（401/403/500/502/504/网络/超时）**不触发** fallback，仍返回原有清洗错误。未配置 `OPENCODE_GO_API_KEY` 则不启用 fallback。备上游失败同样返回其清洗错误（不再二次 fallback）。`DEEPSEEK_*` 与 `OPENCODE_GO_*` 一样只在本机 Node 侧读取，不注入浏览器/构建产物；识别时仍只发送 OCR 文本。
 - **旧变量兼容**：若暂时没重命名，本地代理仍会兼容读取旧的 `VITE_OPENCODE_GO_*`，但前端源码已完全不引用它们；请尽快按上面重命名。
 - 这些变量的值**只在 Vite dev 的 Node 侧**使用：不进入 bundle、不写入健康数据、不在界面显示。
-- **Vercel 生产部署**：仓库内的 `api/recognize-report.ts` 会作为同源 `/api/recognize-report` Serverless Function，浏览器无需改变请求地址；请在 Vercel Project Settings → Environment Variables 配置服务端 `DEEPSEEK_API_KEY`（不要使用 `VITE_` 前缀，也不要把 Key 写入前端变量），保存后重新部署。可选配置 `DEEPSEEK_ENDPOINT`、`DEEPSEEK_MODEL`、`DEEPSEEK_AUTH_HEADER`、`DEEPSEEK_AUTH_SCHEME`。Vite dev 仍由本地 Node 中间件处理。
+- **Vercel 生产部署**：仓库内的 `api/recognize-report.ts` 会作为同源 `/api/recognize-report` Serverless Function，浏览器无需改变请求地址。Vercel Project Settings → Environment Variables 只需配置与本地 `.env.local` **同名**的 `DEEPSEEK_API_KEY`；若本地使用了自定义 `DEEPSEEK_ENDPOINT`、`DEEPSEEK_MODEL`、`DEEPSEEK_AUTH_HEADER`、`DEEPSEEK_AUTH_SCHEME`，原样复制这些同名变量即可，不需要猜模型或 endpoint，也不要使用 `VITE_` 前缀。`DEEPSEEK_ENDPOINT` 可填写完整 `.../chat/completions`，也可填写 base URL（代码会补全 `/chat/completions`）。默认模型为本地当前可用的 `deepseek-v4-flash`，不会自动改成 `deepseek-chat`。保存后重新部署。Vite dev 与 Vercel 共用同一套配置读取和请求协议。
 
 ## 开发
 

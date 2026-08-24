@@ -5,6 +5,13 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { systemPromptForMode } from './src/shared/structurePrompt';
 import { isRecognizeMode, type RecognizeMode } from './src/shared/recognizeProtocol';
 import {
+  DEFAULT_RECOGNIZE_AUTH_HEADER,
+  DEFAULT_RECOGNIZE_AUTH_SCHEME,
+  DEFAULT_RECOGNIZE_ENDPOINT,
+  DEFAULT_RECOGNIZE_MODEL,
+  normalizeRecognizeEndpoint,
+} from './recognizeServer';
+import {
   announceMockEnabled,
   buildMockRecognizeContent,
   isMockRecognitionEnabled,
@@ -41,8 +48,8 @@ const UPSTREAM_DEFAULT_MODEL = 'deepseek-v4-flash';
 const UPSTREAM_DEFAULT_AUTH_HEADER = 'Authorization';
 const UPSTREAM_DEFAULT_AUTH_SCHEME = 'Bearer';
 /** 主上游：直连 DeepSeek（独立配置） */
-const DEEPSEEK_DEFAULT_ENDPOINT = 'https://api.deepseek.com/chat/completions';
-const DEEPSEEK_DEFAULT_MODEL = 'deepseek-v4-flash';
+const DEEPSEEK_DEFAULT_ENDPOINT = DEFAULT_RECOGNIZE_ENDPOINT;
+const DEEPSEEK_DEFAULT_MODEL = DEFAULT_RECOGNIZE_MODEL;
 /** 用于判定「OpenCode Go 明显额度/配额耗尽」的关键词（仅在非 2xx 响应体内查找，不落日志） */
 const QUOTA_KEYWORDS = [
   'quota',
@@ -142,13 +149,15 @@ export function readServerConfig(env: Record<string, string>): RecognizeServerCo
  */
 export function readDeepSeekConfig(env: Record<string, string>): RecognizeServerConfig {
   const apiKey = pick(env, ['DEEPSEEK_API_KEY']);
-  const endpoint = pick(env, ['DEEPSEEK_ENDPOINT']) || DEEPSEEK_DEFAULT_ENDPOINT;
+  const endpoint = normalizeRecognizeEndpoint(
+    pick(env, ['DEEPSEEK_ENDPOINT']) || DEEPSEEK_DEFAULT_ENDPOINT,
+  );
   const model = pick(env, ['DEEPSEEK_MODEL']) || DEEPSEEK_DEFAULT_MODEL;
-  const authHeader = pick(env, ['DEEPSEEK_AUTH_HEADER']) || UPSTREAM_DEFAULT_AUTH_HEADER;
+  const authHeader = pick(env, ['DEEPSEEK_AUTH_HEADER']) || DEFAULT_RECOGNIZE_AUTH_HEADER;
   const scheme =
     env.DEEPSEEK_AUTH_SCHEME !== undefined
       ? env.DEEPSEEK_AUTH_SCHEME
-      : UPSTREAM_DEFAULT_AUTH_SCHEME;
+      : DEFAULT_RECOGNIZE_AUTH_SCHEME;
   const authValue = scheme.trim() === '' ? apiKey : `${scheme.trim()} ${apiKey}`;
   return { name: 'deepseek', apiKey, endpoint, model, authHeader, authValue };
 }

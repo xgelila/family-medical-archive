@@ -14,14 +14,17 @@ describe('本机与 Vercel 结构化协议一致', () => {
     expect(config.rewrites).toBeUndefined();
     const api = readFileSync(resolve(process.cwd(), 'api/recognize-report.ts'), 'utf8');
     expect(api).toContain('export default async function handler');
-    expect(api).toContain('process.env.DEEPSEEK_API_KEY');
+    expect(api).toContain('readRecognizeServiceConfig(process.env)');
     expect(api).not.toContain('import.meta.env');
   });
 
   it('Vercel API 使用共享完整 system prompt，而不是另写精简协议', () => {
     const api = readFileSync(resolve(process.cwd(), 'api/recognize-report.ts'), 'utf8');
-    expect(api).toContain("from '../src/shared/structurePrompt'");
-    expect(api).toContain('systemPromptForMode(mode)');
+    expect(api).toContain("from '../recognizeServer'");
+    expect(api).toContain('buildRecognizePayload(config.model, body.text, body.mode)');
+    const shared = readFileSync(resolve(process.cwd(), 'recognizeServer.ts'), 'utf8');
+    expect(shared).toContain("from './src/shared/structurePrompt'");
+    expect(shared).toContain('systemPromptForMode(selectedMode)');
     expect(api).not.toContain('严格 JSON。只输出 JSON');
   });
 
