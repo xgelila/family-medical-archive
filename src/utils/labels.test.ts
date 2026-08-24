@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   GLUCOSE_REPORT_TYPE,
+  HBA1C_REPORT_TYPE,
+  LEGACY_GLUCOSE_COMBINED_TYPE,
   GLUCOSE_STANDARD_LABELS,
   REPORT_TYPES,
   THYROID_REPORT_TYPE,
@@ -11,6 +13,7 @@ import {
   isGlucoseReportType,
   isThyroidReportType,
   nonEmptyItemDrafts,
+  pendingItemCount,
   quickAddGlucoseDraft,
   quickAddThyroidDraft,
   standardLabelCandidatesForType,
@@ -26,7 +29,8 @@ describe('报告类型/检查类别严格选项', () => {
       '肝功能',
       '肾功能',
       '血脂',
-      '血糖/糖化血红蛋白',
+      '血糖',
+      '糖化血红蛋白',
       '甲状腺功能',
       '肿瘤标志物',
       '影像检查',
@@ -34,6 +38,10 @@ describe('报告类型/检查类别严格选项', () => {
     ]);
     expect(REPORT_TYPES).not.toContain('年度体检');
     expect(REPORT_TYPES).not.toContain('入职体检');
+    // 拆分后：旧合并值不再是可选报告类型（仅作历史兼容常量保留）
+    expect(REPORT_TYPES).not.toContain('血糖/糖化血红蛋白');
+    expect([...REPORT_TYPES]).toContain('血糖');
+    expect([...REPORT_TYPES]).toContain('糖化血红蛋白');
   });
 });
 
@@ -57,7 +65,7 @@ describe('甲功常用项目快速添加（仅限「甲状腺功能」报告类�
     expect(standardLabelCandidatesForType('血常规')).toEqual([]);
   });
 
-  it('快速添加只生成「显式标签 + 空结果」的条目：不默认数值、不要求补齐、不丢弃其它项目', () => {
+  it('快速添加只生成「显式标签 + 空结果」的条目：不默认数值、不要求补齐、不丢弃其它项目；手动默认已确认', () => {
     for (const label of THYROID_STANDARD_LABELS) {
       const d = quickAddThyroidDraft(label);
       expect(d.name).toBe(label);
@@ -66,7 +74,9 @@ describe('甲功常用项目快速添加（仅限「甲状腺功能」报告类�
       expect(d.unit).toBe('');
       expect(d.refRange).toBe('');
       expect(d.notes).toBe('');
-      expect(d.confirmed).toBe(false);
+      expect(d.testMethod).toBe('');
+      // 手动快速添加默认已确认，不受识别确认门槛影响
+      expect(d.confirmed).toBe(true);
     }
     // 任意自定义项目仍可追加（add 按钮不在本纯函数范围内，但草稿可随意组合）
     const custom = { ...emptyDraft(), name: '医院自定义项', standardLabel: '' };
@@ -74,14 +84,16 @@ describe('甲功常用项目快速添加（仅限「甲状腺功能」报告类�
     expect(custom.standardLabel).toBe('');
   });
 
-  it('不存在“按项目名自动映射标准标签”的逻辑：草稿标签默认恒为空，必须显式赋值', () => {
+  it('不存在“按项目名自动映射标准标签”的逻辑：草稿标签默认恒为空，必须显式赋值；手动录入默认已确认', () => {
     const d = emptyDraft();
     d.name = '促甲状腺激素';
     expect(d.standardLabel).toBe(''); // 项目名不会自动推导出 TSH 等标签
+    expect(d.confirmed).toBe(true); // 手动录入默认已确认
+    expect(d.testMethod).toBe(''); // 手动录入默认无检验方法
   });
 });
 
-describe('血糖常用项目快速添加（仅限「血糖/糖化血红蛋白」报告类型，且不做自动标准化）', () => {
+describe('血糖常用项目快速添加（仅限「血糖」「糖化血红蛋白」报告类型，且不做自动标准化）', () => {
   it('候选仅含 5 个明确血糖项目名', () => {
     expect([...GLUCOSE_STANDARD_LABELS]).toEqual([
       '空腹血糖',
@@ -92,17 +104,30 @@ describe('血糖常用项目快速添加（仅限「血糖/糖化血红蛋白」
     ]);
   });
 
-  it('仅在报告类型精确等于严格选项「血糖/糖化血红蛋白」时展示；其他类型/自由文本不展示', () => {
-    expect(GLUCOSE_REPORT_TYPE).toBe('血糖/糖化血红蛋白');
+  it('拆分后：报告类型精确等于「血糖」或「糖化血红蛋白」时展示；其他类型/自由文本不展示', () => {
+    expect(GLUCOSE_REPORT_TYPE).toBe('血糖');
+    expect(HBA1C_REPORT_TYPE).toBe('糖化血红蛋白');
+    // 两个独立拆分类型都触发血糖快速添加
     expect(isGlucoseReportType(GLUCOSE_REPORT_TYPE)).toBe(true);
-    expect(isGlucoseReportType('血糖')).toBe(false); // 不在严格选项内的自由文本不触发
-    expect(isGlucoseReportType('糖化血红蛋白')).toBe(false);
+    expect(isGlucoseReportType(HBA1C_REPORT_TYPE)).toBe(true);
+    // 不在严格选项内的自由文本不触发（包含匹配也不误触发）
+    expect(isGlucoseReportType('血糖')).toBe(true); // 精确命中
+    expect(isGlucoseReportType('糖化血红蛋白')).toBe(true); // 精确命中
+    expect(isGlucoseReportType('血糖报告')).toBe(false);
     expect(isGlucoseReportType('综合体检')).toBe(false);
     expect(isGlucoseReportType('')).toBe(false);
-    expect(isGlucoseReportType('血糖报告')).toBe(false);
+    expect(isGlucoseReportType('血红蛋白')).toBe(false);
   });
 
-  it('血糖快速添加只生成「空白、待确认、无标准标签」条目：无数值/无单位/无区间', () => {
+  it('兼容：旧版合并值「血糖/糖化血红蛋白」仅作历史编辑展示，不重新作为可选项', () => {
+    expect(LEGACY_GLUCOSE_COMBINED_TYPE).toBe('血糖/糖化血红蛋白');
+    // 编辑旧历史报告时仍展示快速添加（兼容迁移），但不强行判定为某一个
+    expect(isGlucoseReportType(LEGACY_GLUCOSE_COMBINED_TYPE)).toBe(true);
+    // 旧值不是内置可选类型
+    expect([...REPORT_TYPES]).not.toContain(LEGACY_GLUCOSE_COMBINED_TYPE);
+  });
+
+  it('血糖快速添加只生成「空白、已确认、无标准标签」条目：无数值/无单位/无区间/无检验方法', () => {
     for (const name of GLUCOSE_STANDARD_LABELS) {
       const d = quickAddGlucoseDraft(name);
       expect(d.name).toBe(name);
@@ -111,8 +136,18 @@ describe('血糖常用项目快速添加（仅限「血糖/糖化血红蛋白」
       expect(d.unit).toBe('');
       expect(d.refRange).toBe('');
       expect(d.notes).toBe('');
-      expect(d.confirmed).toBe(false); // 待确认
+      expect(d.testMethod).toBe('');
+      expect(d.confirmed).toBe(true); // 手动快速添加默认已确认
     }
+  });
+
+  it('pendingItemCount：仅统计待确认（识别候选/历史待确认），手动已确认不计入', () => {
+    const manual = { ...emptyDraft(), name: '血红蛋白' }; // 手动默认已确认
+    const pending = { ...emptyDraft(), name: '尿蛋白', confirmed: false }; // 识别候选待确认
+    expect(pendingItemCount([manual])).toBe(0);
+    expect(pendingItemCount([pending])).toBe(1);
+    expect(pendingItemCount([manual, pending, manual])).toBe(1);
+    expect(pendingItemCount([])).toBe(0);
   });
 
   it('nonEmptyItemDrafts：trim 仅用于判断空项目，不改写任何原始字段（含首尾/行内空格）', () => {

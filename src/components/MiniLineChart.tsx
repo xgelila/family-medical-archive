@@ -37,7 +37,11 @@ export function MiniLineChart({ data, unit, height = 200, width = 560 }: Props) 
   const path = coords
     .map((c, i) => `${i === 0 ? 'M' : 'L'}${c.x.toFixed(1)},${c.y.toFixed(1)}`)
     .join(' ');
-  const xTicks = [...new Set(pts.map((p) => p.date))].slice(0, 6);
+  // 刻度必须与数据点使用同一索引坐标；最多显示 6 个，避免长日期互相覆盖。
+  const tickCount = Math.min(6, coords.length);
+  const tickIndices = Array.from({ length: tickCount }, (_, i) =>
+    tickCount === 1 ? 0 : Math.round((i * (coords.length - 1)) / (tickCount - 1)),
+  ).filter((index, i, all) => all.indexOf(index) === i);
 
   return (
     <svg
@@ -94,16 +98,16 @@ export function MiniLineChart({ data, unit, height = 200, width = 560 }: Props) 
           </text>
         </g>
       ))}
-      {xTicks.map((d) => (
+      {tickIndices.map((index) => (
         <text
-          key={d}
-          x={padX + innerW}
+          key={`${index}-${pts[index].date}`}
+          x={coords[index].x}
           y={height - 8}
-          textAnchor="end"
+          textAnchor={index === 0 ? 'start' : index === coords.length - 1 ? 'end' : 'middle'}
           fontSize="10"
           fill="#475569"
         >
-          {d}
+          {pts[index].date}
         </text>
       ))}
     </svg>

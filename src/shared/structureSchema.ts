@@ -7,7 +7,25 @@
  * - 被 Node 侧提示词（structurePrompt.ts）与浏览器侧清洗（aiStructure.ts）共同引用。
  */
 
+export interface StructureImagingExam {
+  examPart: string;
+  examMethod: string;
+  findings: string;
+  impression: string;
+  measurements: string;
+}
+
+export interface StructureImaging {
+  examPart: string;
+  examMethod: string;
+  findings: string;
+  impression: string;
+  measurements: string;
+  exams?: StructureImagingExam[];
+}
+
 export interface StructureReport {
+  reportKind: string;
   hospital: string;
   branch: string;
   reportNo: string;
@@ -18,6 +36,8 @@ export interface StructureReport {
   clinicalDiagnosis: string;
   testPurpose: string;
   reportDate: string;
+  reportTypes: string[];
+  /** 兼容旧模型输出；新输出优先 reportTypes。 */
   reportType: string;
   title: string;
   sampleDate: string;
@@ -52,6 +72,7 @@ export interface StructureNote {
 
 export interface StructuredReport {
   report: StructureReport;
+  imaging: StructureImaging;
   items: StructureItem[];
   extraFields: StructureExtraField[];
   notes: StructureNote[];
@@ -60,6 +81,7 @@ export interface StructuredReport {
 
 /** 固定 report 字段（顺序即展示顺序）。 */
 export const REPORT_FIELD_KEYS: readonly (keyof StructureReport)[] = [
+  'reportKind',
   'hospital',
   'branch',
   'reportNo',
@@ -70,6 +92,7 @@ export const REPORT_FIELD_KEYS: readonly (keyof StructureReport)[] = [
   'clinicalDiagnosis',
   'testPurpose',
   'reportDate',
+  'reportTypes',
   'reportType',
   'title',
   'sampleDate',
@@ -78,6 +101,16 @@ export const REPORT_FIELD_KEYS: readonly (keyof StructureReport)[] = [
   'senderDoctor',
   'inspector',
   'reviewer',
+];
+
+/** 固定影像字段；exams 是并列子检查数组，旧 scalar 字段继续兼容。 */
+export const IMAGING_FIELD_KEYS: readonly (keyof StructureImaging)[] = [
+  'examPart',
+  'examMethod',
+  'findings',
+  'impression',
+  'measurements',
+  'exams',
 ];
 
 export const ITEM_FIELD_KEYS: readonly (keyof StructureItem)[] = [
@@ -94,6 +127,7 @@ export const EXTRA_FIELD_SECTIONS: readonly string[] = ['header', 'footer', 'oth
 
 export function emptyStructureReport(): StructureReport {
   return {
+    reportKind: 'lab',
     hospital: '',
     branch: '',
     reportNo: '',
@@ -104,6 +138,7 @@ export function emptyStructureReport(): StructureReport {
     clinicalDiagnosis: '',
     testPurpose: '',
     reportDate: '',
+    reportTypes: [],
     reportType: '',
     title: '',
     sampleDate: '',
@@ -126,9 +161,14 @@ export function emptyStructureItem(): StructureItem {
   };
 }
 
+export function emptyStructureImaging(): StructureImaging {
+  return { examPart: '', examMethod: '', findings: '', impression: '', measurements: '', exams: [] };
+}
+
 export function emptyStructuredReport(): StructuredReport {
   return {
     report: emptyStructureReport(),
+    imaging: emptyStructureImaging(),
     items: [],
     extraFields: [],
     notes: [],

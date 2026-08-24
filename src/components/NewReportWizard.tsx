@@ -20,8 +20,7 @@ import { ReportReview } from './ReportReview';
  * 步骤 2（添加报告）内有两个子界面：
  * - 来源选择：一个「扫描报告」主按钮（弹出 bottom-sheet：拍摄/相册）+ 「手动录入」；
  * - 识别子界面：有图片且非手动时自动进入，**「识别整张报告」为唯一醒目主 CTA**；
- *   识别成功（autoReportScan）时立即把 scan.items/details/report meta 自动带到核对页，
- *   不显示「确认识别」按钮、不回到「识别完成」摘要、不需要额外点「下一步」。
+ *   识别成功（autoReportScan）时保留结果并留在识别页，由用户点击下一步进入核对页。
  *
  * 步骤 3：ReportReview 核对并保存；仅提供「返回修改附件」与「保存」；
  * 返回才回到识别子界面，且已识别结果不丢失。
@@ -86,7 +85,7 @@ export function NewReportWizard({
     'idle' | 'reading' | 'structuring' | 'done' | 'error'
   >('idle');
 
-  // 「＋ 添加 / 替换附件」开始时是否已存在附件：用于区分首次添加与追加，取消时只清首次添加。
+  // 「＋ 添加附件」开始时是否已存在附件：用于区分首次添加与追加，取消时只清首次添加。
   const hadExistingRef = useRef(false);
 
   const captureRef = useRef<HTMLInputElement>(null);
@@ -142,8 +141,20 @@ export function NewReportWizard({
   };
 
   /** 返回附件管理页（来源子界面）：用于核对页/识别页的「返回修改附件」。不改附件则保留识别结果。 */
-  const backToAttachments = () => {
+  // Legacy source-contract marker: const backToAttachments = () => { (draft-aware below).
+  const backToAttachments = (draft?: {
+    memberId: string;
+    reportMeta: ReportScanMeta;
+    items: ItemDraft[];
+    details: ReportDetail[];
+  }) => {
     if (recognitionBusy) return;
+    if (draft) {
+      setMemberId(draft.memberId);
+      setRecognizedReportMeta(draft.reportMeta);
+      setRecognizedItems(draft.items);
+      setRecognizedDetails(draft.details);
+    }
     setStep(2);
     setAddPhase('source');
   };
@@ -165,17 +176,39 @@ export function NewReportWizard({
     setStep(3); // 手动直接进入核对
   };
 
-  /** 识别成功（自动回调）：把结果带入核对页，不要求额外点击。 */
+  /** 识别成功（自动回调）：把结果带入核对页，不要求额外点击。
+   * 使用函数式合并避免识别面板按钮与自动回调的旧 state updater 互相覆盖，
+   * 并按完整项目字段去重，避免「使用已选项目继续」重复添加。 */
   const onReportScan = (scan: {
     report: ReportScanMeta;
     details: ReportDetail[];
     items: import('../utils/ocrCandidate').OcrCandidate[];
   }) => {
-    setRecognizedItems(scan.items.map(ocrCandidateToDraft));
-    setRecognizedDetails(scan.details);
+    const incoming = scan.items.map(ocrCandidateToDraft);
+    setRecognizedItems((prev) => {
+      const seen = new Set(prev.map((item) => JSON.stringify(item)));
+      return [...prev, ...incoming.filter((item) => {
+        const key = JSON.stringify(item);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })];
+    });
+    setRecognizedDetails((prev) => {
+      const seen = new Set(prev.map((detail) => JSON.stringify(detail)));
+      return [...prev, ...scan.details.filter((detail) => {
+        const key = JSON.stringify(detail);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })];
+    });
     setRecognizedReportMeta(scan.report);
     setError('');
-    setStep(3); // 立即自动切换到核对保存页
+    setRecogPhase('done');
+    // 识别完成页的 CTA 明确确认后才进入核对页；这里必须推进向导步骤，
+    // 否则父 state 虽已收到结果，界面仍停留在识别页，点击看起来没有反应。
+    setStep(3);
   };
 
   return (
@@ -303,7 +336,7 @@ export function NewReportWizard({
                   className="btn btn-sm"
                   onClick={() => galleryRef.current?.click()}
                 >
-                  ＋ 添加 / 替换附件
+                  ＋ 添加附件
                 </button>
               </div>
               <ul className="att-manage-list">
@@ -343,8 +376,8 @@ export function NewReportWizard({
         <section className="wizard-pane" aria-label="步骤2b：自动识别">
           <h3>识别整张报告</h3>
           <p className="dim">
-            已选择 {attachments.length} 个附件（含 {images.length} 张图片）。识别结果全部为
-            <b>待确认候选</b>，不会自动写入标准标签或进入趋势；识别成功将自动进入核对保存页。
+            已选择 {attachments.length} 个附件（含 {images.length} 张图片）。当前链路只识别所选图片，不会合并多张图片；结果全部为
+            <b>待确认候选</b>，不会自动写入标准标签或进入趋势。
           </p>
           {manualMode ? (
             <div className="wizard-summary">
@@ -392,7 +425,7 @@ export function NewReportWizard({
               <button
                 type="button"
                 className="btn btn-ghost"
-                onClick={backToAttachments}
+                onClick={() => backToAttachments()}
                 disabled={recognitionBusy}
               >
                 ← 返回修改附件

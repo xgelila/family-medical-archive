@@ -246,6 +246,24 @@ describe('buildCleanImport 标准标签（显式设置；缺省视为未设置�
     expect(clean.items[0].standardLabel).toBe('');
     expect(clean.items[0].value).toBe('2.1');
   });
+
+  it('试验方法（testMethod）作为检查项目字段导入保留；旧数据缺省 → 空串', async () => {
+    const withMethod = await buildCleanImport(
+      payload({
+        reports: [report('r1', [])],
+        items: [item({ id: 'i1', reportId: 'r1', name: 'TSH', testMethod: '化学发光法' })],
+      }),
+    );
+    expect(withMethod.items[0].testMethod).toBe('化学发光法');
+    // 旧版导出缺省 testMethod → 空串（历史数据兼容），不丢其它字段
+    const { testMethod: _omit, ...legacyItem } = item({ id: 'i2', reportId: 'r1' });
+    const clean = await buildCleanImport(
+      payload({ reports: [report('r1', [])], items: [legacyItem as ReportItem] }),
+    );
+    expect(clean.items).toHaveLength(1);
+    expect(clean.items[0].testMethod).toBe('');
+    expect(clean.items[0].name).toBe('促甲状腺激素');
+  });
 });
 
 describe('buildCleanImport 用户自定义报告类型（导入导出保留，旧数据不报错）', () => {

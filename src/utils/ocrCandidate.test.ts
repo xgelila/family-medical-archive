@@ -39,6 +39,20 @@ describe('testPurposeToReportType（检验目的 → 严格报告类型候选）
     expect(testPurposeToReportType('肿瘤标志物筛查')).toBe('肿瘤标志物');
   });
 
+  it('拆分后：检验目的「血糖」映射血糖，「糖化血红蛋白」映射糖化血红蛋白（各自独立，互不误归）', () => {
+    expect(testPurposeToReportType('血糖')).toBe('血糖');
+    expect(testPurposeToReportType('糖化血红蛋白')).toBe('糖化血红蛋白');
+    // 包含命中：空腹血糖/餐后血糖 归血糖；糖化血红蛋白报告 归糖化血红蛋白
+    expect(testPurposeToReportType('空腹血糖')).toBe('血糖');
+    expect(testPurposeToReportType('餐后2小时血糖')).toBe('血糖');
+    expect(testPurposeToReportType('糖化血红蛋白A1c')).toBe('糖化血红蛋白');
+    // 负例：二者互不为子串，不会相互误归（血糖 不会误归到 糖化血红蛋白，反之亦然）
+    expect(testPurposeToReportType('糖化血红蛋白')).not.toBe('血糖');
+    expect(testPurposeToReportType('血糖')).not.toBe('糖化血红蛋白');
+    // 相关但非受控词：血红蛋白 不是受控报告类型
+    expect(testPurposeToReportType('血红蛋白')).toBe('');
+  });
+
   it('无命中（含空/空白/未识别）一律返回空串，绝不猜测回填', () => {
     expect(testPurposeToReportType('')).toBe('');
     expect(testPurposeToReportType('   ')).toBe('');
@@ -106,6 +120,15 @@ describe('ocrCandidateToDraft（追加到报告前的草稿映射）', () => {
     const draft = ocrCandidateToDraft(cand({ chosenLabel: '白蛋白' }));
     expect(draft.standardLabel).toBe('白蛋白');
     expect(draft.confirmed).toBe(false); // 趋势要求 confirmed=true，因此仍不会进入趋势
+  });
+
+  it('检验方法（method）进入草稿 testMethod 字段（检查项目字段），不再并入 notes/备注', () => {
+    const draft = ocrCandidateToDraft(cand({ method: '化学发光法' }));
+    expect(draft.testMethod).toBe('化学发光法');
+    expect(draft.notes).toBe(''); // 不放入备注
+    // 缺失方法 → 空串
+    expect(ocrCandidateToDraft(cand({ method: '' })).testMethod).toBe('');
+    expect(ocrCandidateToDraft(cand({ method: '   ' })).testMethod).toBe('   '); // 保留原文
   });
 
   it('采用后 standardLabel 与 chosenLabel 同时带出：草稿标准标签正确传递（含原始空格）', () => {

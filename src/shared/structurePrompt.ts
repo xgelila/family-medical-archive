@@ -10,6 +10,7 @@
 import type { RecognizeMode } from './recognizeProtocol';
 import {
   REPORT_FIELD_KEYS,
+  IMAGING_FIELD_KEYS,
   ITEM_FIELD_KEYS,
   type StructureReport,
   type StructureItem,
@@ -17,11 +18,20 @@ import {
 
 /** 固定 report 字段的空值 JSON 片段（用于向模型示例完整 key 集合）。 */
 function reportKeysJson(): string {
-  const keys = REPORT_FIELD_KEYS.map((k) => `"${k}":""`).join(',');
+  const keys = REPORT_FIELD_KEYS.map((k) => k === 'reportTypes' ? `"${k}":[]` : `"${k}":""`).join(',');
   return `{${keys}}`;
 }
 
 /** 固定 item 字段的空值 JSON 片段。 */
+function imagingExamJson(): string {
+  return '{"examPart":"","examMethod":"","findings":"","impression":"","measurements":""}';
+}
+
+function imagingKeysJson(): string {
+  const keys = IMAGING_FIELD_KEYS.map((k) => k === 'exams' ? `"${k}":[${imagingExamJson()}]` : `"${k}":""`).join(',');
+  return `{${keys}}`;
+}
+
 function itemKeysJson(): string {
   const keys = ITEM_FIELD_KEYS.map((k) => `"${k}":""`).join(',');
   return `{${keys}}`;
@@ -30,6 +40,7 @@ function itemKeysJson(): string {
 /** 固定的顶层 schema 模板（所有模式强制同构）。 */
 const FIXED_SCHEMA_JSON = `{
   "report": ${reportKeysJson()},
+  "imaging": ${imagingKeysJson()},
   "items": [${itemKeysJson()}],
   "extraFields": [{"section":"header|footer|other","key":"","value":"","sourceText":""}],
   "notes": [{"text":"","sourceText":""}],
@@ -48,10 +59,12 @@ export const STRUCTURE_SYSTEM_PROMPT = `从文字中识别出检查单的所有�
 ${FIXED_SCHEMA_JSON}
 
 字段说明：
+- report.reportKind 只能是 lab、imaging、other；影像报告必须使用 imaging 字段，不得把所见/结论伪装为 items；testPurpose 是公共字段，reportTypes 是报告类型数组（用于匹配预设），reportType 是旧版兼容字段；从 OCR 全文语义识别报告大类、报告类型与检查项目，不依赖「检验目的」「检查项目」等固定中文标题；不确定时留空，不编造；检验将送检/检验目的语义归入 testPurpose，影像将检查项目/检查目的/检查名称等语义归入 testPurpose（系统 UI 标签为检查项目）；
+- 影像一份报告可包含多个检查部位/子检查，必须输出 imaging.exams 数组；每个 exams 项必须同时包含 examPart、examMethod、findings、impression、measurements（可为空但不能省略），并列项目拆成多个，缺失内容留空，不得编造或挪用；测量值逐字保留数字、单位和上下文；旧版单项 imaging 字段仍兼容；lab 报告才使用 items；
 - report 与 items 的字段值缺失一律填空字符串 ""；
-- items 是检查项目列表：name=项目名（结合医学常识识别正确名称，纠正 OCR 明显的识别错误）、
-  result=结果值原文（数值或定性，如 "5.6"、"阴性"；含 < > ≤ ≥ 前缀时保留）、
-  referenceRange=参考区间、unit=单位、method=检验方法（缺失填空）、sourceText=该项目来源的原文片段（须与输入逐字一致，用于溯源，不得改动）；
+- items 是检查项目列表：name=项目名（只逐字摘录 OCR 原文；不得纠正、猜测或用医学常识改写；无法确定时保留原文并放入 unresolvedText）、
+  result=结果值原文（逐字保留数字、符号与小数位，如 "1.1" 不得变成 "1.05"；含 < > ≤ ≥ 前缀时保留；不得换算、四舍五入或医学推断），
+  referenceRange=参考区间原文（逐字保留数字、小数位、连接符与单位，如 "1.2-2.4" 不得变成 "1.2-2.5"）、unit=单位原文、method=检验方法原文（缺失填空）、sourceText=该项目来源的原文片段（须与输入逐字一致，用于溯源，不得改动）；
 - report 为报告头部信息候选（医院/编号/姓名/日期/送检医生等），无法判断的字段填空 ""；
 - 无法归入 report/items 的其它信息（如页眉页脚、机构地址、非项目备注）放到 extraFields 或 notes；
 - unresolvedText 放无法可靠对应到任何结构项的原文行（多行用换行分隔），不要猜测、不要丢弃。`;
@@ -68,15 +81,14 @@ export const REPORT_STRUCTURE_SYSTEM_PROMPT = `从文字中识别出整张报告
 ${FIXED_SCHEMA_JSON}
 
 字段说明：
+- report.reportKind 只能是 lab、imaging、other；影像报告必须使用 imaging 字段，不得把所见/结论伪装为 items；testPurpose 是公共字段，reportTypes 是报告类型数组（用于匹配预设），reportType 是旧版兼容字段；从 OCR 全文语义识别报告大类、报告类型与检查项目，不依赖「检验目的」「检查项目」等固定中文标题；不确定时留空，不编造；检验将送检/检验目的语义归入 testPurpose，影像将检查项目/检查目的/检查名称等语义归入 testPurpose（系统 UI 标签为检查项目）；
+- 影像一份报告可包含多个检查部位/子检查，必须输出 imaging.exams 数组；每个 exams 项必须同时包含 examPart、examMethod、findings、impression、measurements（可为空但不能省略），并列项目拆成多个，缺失内容留空，不得编造或挪用；测量值逐字保留数字、单位和上下文；旧版单项 imaging 字段仍兼容；lab 报告才使用 items；
 - report 为整张报告头部信息候选（全部由用户最终决定）：hospital=医院/体检机构、branch=分院、
   reportNo=报告编号、personName=姓名、gender=性别、age=年龄、patientId=病历号、clinicalDiagnosis=临床诊断、
   testPurpose=检验目的、reportDate=报告日期(YYYY-MM-DD)、reportType=报告类型、title=标题、sampleDate=采样日期、receiveDate=接收日期、
   printDate=打印日期、senderDoctor=送检医生、inspector=检验者、reviewer=审核者；无法可靠判断的字段填空 ""（禁止猜测性补全）；
-- **testPurpose（检验目的）为每张整张报告必填字段**：这是报告上「检验目的/送检目的/检查目的/体检项目类别」那一栏的原文，
-  如「血常规检查」「肝功能检验」「健康体检」「甲状腺功能复查」等；必须从报告文字中逐字读取并填入该字段，
-  若报告上确实没有该栏或无法判读，才填空字符串 ""，**严禁编造、严禁写成占位说明**；
-- items 是检查项目列表：name=项目名（结合医学常识识别正确名称，纠正 OCR 明显的识别错误）、result=结果值原文（数值或定性，含 < > ≤ ≥ 前缀时保留）、
-  referenceRange=参考区间、unit=单位、method=检验方法（缺失填空）、sourceText=该项目来源的原文片段（须与输入逐字一致，用于溯源，不得改动）；
+- testPurpose 是公共字段：检验从原文送检/检验目的语义提取；影像从检查项目、检查目的、检查名称等语义提取（系统 UI 标签为检查项目）；从 OCR 全文语义理解，不要求固定标题，原文没有或无法判读时填空；该字段仍为 schema 中的必填字段（值可为空）；reportTypes 用于匹配预设，无法确定时留空，严禁编造；
+- items 是检查项目列表：name=项目名（只逐字摘录 OCR 原文；不得纠正、猜测或用医学常识改写；无法确定时保留原文并放入 unresolvedText）、result=结果值原文（逐字保留数字、符号与小数位；不得换算、四舍五入或医学推断），referenceRange=参考区间原文（逐字保留数字、小数位、连接符与单位；不得修正端点）、unit=单位原文、method=检验方法原文（缺失填空）、sourceText=该项目来源的原文片段（须与输入逐字一致，用于溯源，不得改动）；
 - 无法归入 report/items 的其它信息放到 extraFields 或 notes；
 - unresolvedText 放无法可靠对应到任何结构项的原文行（多行用换行分隔），不要猜测、不要丢弃。`;
 

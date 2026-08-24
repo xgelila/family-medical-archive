@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { db } from '../db';
-import type { Member, Report, ReportItem } from '../types';
+import { normalizeReportTypes, type Member, type Report, type ReportItem } from '../types';
 import { analyzeTrend, buildTrendPoint, numericItemNames, type TrendPoint } from '../utils/trend';
 import { EmptyState, Field, Chip } from './Kit';
 import { MiniLineChart } from './MiniLineChart';
@@ -18,6 +18,7 @@ export function TrendView({
   const [reports, setReports] = useState<Report[]>([]);
   const [items, setItems] = useState<ReportItem[]>([]);
   const [memberId, setMemberId] = useState('');
+  const [reportType, setReportType] = useState('');
   const [name, setName] = useState('');
 
   useEffect(() => {
@@ -34,16 +35,23 @@ export function TrendView({
     void load();
   }, [refreshKey]);
 
+  const labReportIds = useMemo(() => new Set(reports.filter((r) => (r.reportKind ?? 'lab') === 'lab').map((r) => r.id)), [reports]);
   const memberItems = useMemo(
-    () => (memberId ? items.filter((i) => i.memberId === memberId) : []),
-    [memberId, items],
+    () => (memberId ? items.filter((i) => i.memberId === memberId && labReportIds.has(i.reportId)) : []),
+    [memberId, items, labReportIds],
   );
+  const memberLabReports = useMemo(() => reports.filter((r) => r.memberId === memberId && (r.reportKind ?? 'lab') === 'lab'), [reports, memberId]);
+  const reportTypeCandidates = useMemo(() => [...new Set(memberLabReports.flatMap(normalizeReportTypes))].sort((a, b) => a.localeCompare(b, 'zh')), [memberLabReports]);
+  const filteredMemberItems = useMemo(() => reportType ? memberItems.filter((i) => {
+    const report = reports.find((r) => r.id === i.reportId);
+    return report ? normalizeReportTypes(report).includes(reportType) : false;
+  }) : memberItems, [memberItems, reportType, reports]);
   // 趋势候选 = 数值型条目的检查项名称（含待确认，便于逐条核对）
-  const candidates = useMemo(() => numericItemNames(memberItems), [memberItems]);
+  const candidates = useMemo(() => numericItemNames(filteredMemberItems), [filteredMemberItems]);
   const reportsById = useMemo(() => new Map(reports.map((r) => [r.id, r])), [reports]);
 
   // 选定名称下的条目（同成员、同检查项名称）
-  const namedItems = name ? memberItems.filter((i) => (i.name ?? '').trim() === name) : [];
+  const namedItems = name ? filteredMemberItems.filter((i) => (i.name ?? '').trim() === name) : [];
   // 待确认（confirmed=false）条目不参与趋势统计/连线；仍单独列表展示，可随时确认。
   const confirmedItems = namedItems.filter((i) => i.confirmed !== false);
   const pendingItems = namedItems.filter((i) => i.confirmed === false);
@@ -65,6 +73,7 @@ export function TrendView({
             value={memberId}
             onChange={(e) => {
               setMemberId(e.target.value);
+              setReportType('');
               setName('');
             }}
           >
@@ -76,9 +85,15 @@ export function TrendView({
             ))}
           </select>
         </Field>
+        <Field label="报告类型" hint="仅筛选包含该类型的检验报告">
+          <select value={reportType} onChange={(e) => { setReportType(e.target.value); setName(''); }} disabled={!memberId}>
+            <option value="">全部检验类型</option>
+            {reportTypeCandidates.map((t) => <option key={t} value={t}>{t}</option>)}
+          </select>
+        </Field>
         <Field
           label="检查项目 *"
-          hint="按检查项名称分组；同名称、同单位才合并为一条曲线，不同名称（如 Al / Alc）始终为独立曲线"
+          hint="同名同单位才连线；不同名称独立展示"
         >
           <select
             value={name}
@@ -103,17 +118,15 @@ export function TrendView({
         )}
       </div>
 
-      <div className="toolbar card" role="note">
-        ℹ️ 趋势曲线以「检查项名称」为主键。 不同名称（如 糖化血红蛋白Al 与
-        糖化血红蛋白Alc）始终为独立曲线并排展示，绝不强行合并连线；只有「同一检查项名称 + 检查类别 +
-        单位」完全一致的记录才连成一条曲线。
+      <div className="toolbar card trend-rule-note" role="note">
+        ℹ️ 仅同一成员、同名同类别同单位的已确认数值会连线；其余记录仅展示原文。
       </div>
 
       {!memberId || !name ? (
         <EmptyState
           icon="📈"
           title="选择成员与检查项目"
-          desc="趋势曲线以检查项名称为主键：同一成员、同一检查项名称 + 检查类别 + 单位完全一致的记录才连成一条曲线。不同名称（如 糖化血红蛋白Al 与 糖化血红蛋白Alc）始终为独立曲线，绝不强行合并；曲线主键不同或单位缺失时仅并排展示并提示不可比较，绝不做自动换算。"
+          desc="仅同名同类别同单位的已确认数值会连线；名称或单位不同会分开展示，绝不自动换算。"
         />
       ) : (
         <>
@@ -196,7 +209,7 @@ function renderAnalysis(
   return (
     <div className="single-series">
       <Notice
-        warning={`同一成员、同一已确认曲线主键（检查项「${analysis.series.originalName}」· 单位「${analysis.series.unit}」）完全一致，可以比较。以下连线仅连接该曲线主键下的原始数值，未做任何换算。`}
+        warning="同名同类别同单位的已确认记录可比较；连线使用原始数值，未做换算。"
         tone="ok"
       />
       <div className="card series-card">
@@ -246,7 +259,8 @@ function SeriesTable({
   gotoReport: (r: Report) => void;
 }) {
   return (
-    <div className="table-wrap">
+    <>
+      <div className="table-wrap trend-records-desktop">
       <table className="data-table">
         <thead>
           <tr>
@@ -273,6 +287,7 @@ function SeriesTable({
                   <button
                     type="button"
                     className={`status-toggle ${p.confirmed ? 'st-ok' : 'st-warn'}`}
+                    aria-pressed={p.confirmed}
                     onClick={async () => {
                       await db.items.update(p.itemId, { confirmed: !p.confirmed });
                       bump();
@@ -293,6 +308,41 @@ function SeriesTable({
           })}
         </tbody>
       </table>
+      </div>
+    <div className="trend-records-mobile">
+      {points.map((p) => {
+        const report = reportsById.get(p.reportId);
+        return (
+          <article key={p.itemId} className={`trend-record-card ${p.confirmed ? '' : 'row-pending'}`}>
+            <div className="trend-record-head">
+              <strong>{p.date}</strong>
+              <button
+                type="button"
+                className={`status-toggle ${p.confirmed ? 'st-ok' : 'st-warn'}`}
+                aria-pressed={p.confirmed}
+                onClick={async () => {
+                  await db.items.update(p.itemId, { confirmed: !p.confirmed });
+                  bump();
+                }}
+              >
+                {p.confirmed ? '✓ 已确认' : '！待确认'}
+              </button>
+            </div>
+            <dl className="trend-record-fields">
+              <div><dt>医院</dt><dd>{p.hospital || '—'}</dd></div>
+              <div><dt>原始值</dt><dd>{p.rawValue || '—'}</dd></div>
+              <div><dt>单位</dt><dd>{p.unit || '缺失'}</dd></div>
+              <div><dt>参考区间</dt><dd>{p.refRange || '—'}</dd></div>
+            </dl>
+            {report && (
+              <button type="button" className="btn btn-sm" onClick={() => gotoReport(report)}>
+                查看报告
+              </button>
+            )}
+          </article>
+        );
+      })}
     </div>
+    </>
   );
 }

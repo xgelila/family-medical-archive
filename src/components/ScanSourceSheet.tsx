@@ -7,6 +7,8 @@
  *
  * 边界：仅负责把用户选择转发给上层已有的 file input；复用既有相机/相册能力，保持移动端。
  */
+import { useEffect } from 'react';
+
 export function ScanSourceSheet({
   onCamera,
   onGallery,
@@ -16,6 +18,14 @@ export function ScanSourceSheet({
   onGallery: () => void;
   onClose: () => void;
 }) {
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [onClose]);
+
   return (
     <div
       className="modal-overlay source-sheet-overlay"
@@ -23,10 +33,10 @@ export function ScanSourceSheet({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="source-sheet" role="dialog" aria-modal="true" aria-label="选择扫描来源">
+      <div className="source-sheet" role="dialog" aria-modal="true" aria-labelledby="scan-source-title">
         <div className="source-sheet-grab" aria-hidden="true" />
         <div className="source-sheet-head">
-          <strong>扫描报告</strong>
+          <strong id="scan-source-title">扫描报告</strong>
           <button type="button" className="btn btn-ghost" onClick={onClose} aria-label="关闭">
             ✕
           </button>
@@ -53,7 +63,7 @@ export function ScanSourceSheet({
             </span>
           </button>
           <p className="source-sheet-note dim">
-            选图后会自动进入图片编辑（裁剪 / 缩放 / 马赛克），完成后再进行识别。
+            选图后将直接进行本机读取与识别。
           </p>
         </div>
       </div>

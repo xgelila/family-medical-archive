@@ -128,7 +128,7 @@ describe('返回修改附件：跳回附件管理页，支持删除/添加/切�
   it('附件管理页显示已选附件并支持删除 / 添加 / 切手动', () => {
     expect(wizard).toContain('已选附件');
     expect(wizard).toContain('deleteAttachment');
-    expect(wizard).toContain('添加 / 替换附件');
+    expect(wizard).toContain('添加附件');
   });
 
   it('只有附件实际变更（新增/替换/删除/切手动）才清除旧识别结果，未改附件保留识别结果', () => {
@@ -158,25 +158,48 @@ describe('返回修改附件：跳回附件管理页，支持删除/添加/切�
   });
 });
 
-describe('新建报告向导：识别 CTA 唯一醒目 + 成功后自动进入核对页（无二次确认/下一步）', () => {
+describe('新建报告向导：识别 CTA 唯一醒目 + 成功后停留识别页', () => {
   it('识别子界面以「识别整张报告」为唯一主 CTA（reportModeOnly），隐藏「仅识别检查项目」', () => {
     expect(wizard).toContain('reportModeOnly');
-    // 识别子界面只渲染 ReportRecognitionPanel（整张报告模式），不再出现「下一步：核对并保存」
-    expect(wizard).not.toContain('下一步：核对并保存');
+    // 识别结果完成后停留识别页，由用户明确点击摘要 CTA 进入核对
+    expect(panel).toContain('进入核对并保存');
   });
 
-  it('ReportRecognitionPanel 提供自动完成回调（autoReportScan），成功时自动 onReportScan', () => {
+  it('ReportRecognitionPanel 提供用户确认 CTA（autoReportScan），成功时才 onReportScan', () => {
     expect(panel).toContain('autoReportScan = false');
     expect(panel).toContain('autoReportScan?: boolean');
-    expect(panel).toContain("phase === 'done' && mode === 'report'");
+    expect(panel).toContain("phase === 'done'");
+    expect(panel).toContain('const enterReview');
   });
 
-  it('向导把 onReportScan 与 autoReportScan 传给面板，识别成功即 setStep(3) 自动进入核对', () => {
+  it('向导把 onReportScan 与 autoReportScan 传给面板，识别成功后 CTA 推进到核对页', () => {
     expect(wizard).toContain('autoReportScan');
     expect(wizard).toContain('onReportScan={onReportScan}');
-    expect(wizard).toContain('setStep(3); // 立即自动切换到核对保存页');
-    // 没有「创建报告并添加已选项目」的二次确认按钮流程（旧版确认入口已移除）
+    expect(wizard).toContain("setRecogPhase('done')");
+    // CTA 调用 onReportScan 后必须推进父向导，否则按钮点击无可见效果。
+    expect(wizard).toContain("setStep(3);\n  };");
+    expect(panel).toContain('进入核对并保存');
     expect(wizard).not.toContain('创建报告并添加已选项目');
+  });
+
+  it('整张报告仅保留自动完成与下一步草稿传递，不显示合并项目 CTA', () => {
+    expect(panel).not.toContain('使用已选项目继续');
+    expect(panel).not.toContain('创建报告并添加已选项目');
+    expect(wizard).toContain('initialItems={recognizedItems}');
+    expect(review).toContain('useState<ItemDraft[]>(editingReport ? [] : (initialItems ?? []))');
+  });
+
+  it('合并已选项目按完整草稿去重，未选项目不会由按钮额外注入', () => {
+    expect(wizard).toContain('setRecognizedItems((prev) => {');
+    expect(wizard).toContain('incoming.filter((item) => {');
+    expect(wizard).toContain('const seen = new Set(prev.map((item) => JSON.stringify(item)))');
+    expect(panel).toContain('items: rows.map(rowToCandidate),');
+  });
+
+  it('影像报告不显示检验项目 CTA，扫描结果仍保留 exams', () => {
+    expect(panel).toContain("reportMeta.reportKind === 'lab'");
+    expect(panel).toContain("mode !== 'report' ? (");
+    expect(panel).toContain('...(reportMeta.exams ? { exams: reportMeta.exams } : {}),');
   });
 
   it('识别失败保留重试主 CTA 与清晰错误；识别进行中禁用返回/取消/跳过', () => {

@@ -7,9 +7,14 @@ import { useEffect } from 'react';
 export function PrivacyModal({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     const prev = document.body.style.overflow;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKeyDown);
     document.body.style.overflow = 'hidden';
     return () => {
       document.body.style.overflow = prev;
+      document.removeEventListener('keydown', onKeyDown);
     };
   }, []);
 
@@ -20,9 +25,9 @@ export function PrivacyModal({ onClose }: { onClose: () => void }) {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="privacy-modal" role="dialog" aria-modal="true" aria-label="隐私说明">
+      <div className="privacy-modal" role="dialog" aria-modal="true" aria-labelledby="privacy-modal-title">
         <header className="img-editor-head">
-          <strong>隐私说明</strong>
+          <strong id="privacy-modal-title">隐私说明</strong>
           <button type="button" className="btn btn-ghost" onClick={onClose} aria-label="关闭">
             ✖ 关闭
           </button>
@@ -40,8 +45,8 @@ export function PrivacyModal({ onClose }: { onClose: () => void }) {
           <section>
             <h4>图片识别</h4>
             <p>
-              「识别数据」功能会<strong>在本机读取</strong>你选择的报告图片并在本机完成裁剪；
-              图片本身<strong>不会发送出去</strong>。从图片中读出的文字会发送到你配置的
+              「识别数据」功能会<strong>在本机读取</strong>你选择的报告图片；图片本身
+              <strong>不会发送出去</strong>。从图片中读出的文字会发送到你配置的
               第三方模型服务，用于整理成检查项目。
             </p>
           </section>
@@ -50,7 +55,7 @@ export function PrivacyModal({ onClose }: { onClose: () => void }) {
             <h4>第三方服务</h4>
             <p>
               识别出的文字会离开本机、交由你自行配置的第三方服务处理，其保存与使用政策以该服务的
-              条款为准。请勿在报告中保留不必要的个人信息。该服务仅当你点击「识别数据」并完成裁剪
+              条款为准。请勿在报告中保留不必要的个人信息。该服务仅当你点击「识别数据」
               后才会被调用。
             </p>
           </section>

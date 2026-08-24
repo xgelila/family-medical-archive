@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanAiReportStructured, cleanAiStructured } from '../utils/aiStructure';
+import {
+  buildCleanSentText,
+  cleanAiReportStructured,
+  cleanAiStructured,
+  isMockStructuredReply,
+} from '../utils/aiStructure';
 import type { RecognizeMode } from './recognizeProtocol';
 import {
   adaptSampleToPayload,
@@ -149,6 +154,51 @@ describe('mock 内容与真实清洗路径（前端协议不变）', () => {
     const sentText = sample.items!.map((i) => i.name).join('\n');
     const cleaned = cleanAiStructured(JSON.parse(content), sentText);
     expect(cleaned.items.length).toBe(sample.items!.length);
+  });
+
+  it('mock report 返回 items 非空，且每项字段可被前端清洗解析（整张报告模式走项目列表）', () => {
+    const content = buildMockRecognizeContent('report');
+    const parsed = JSON.parse(content) as Record<string, unknown>;
+    expect((parsed.items as unknown[]).length).toBeGreaterThan(0);
+
+    // 模拟真实运行：OCR 原文（字符被打散），不含 sample 干净项目名；
+    // 用 mock 时前端补充的 grounding 文本（buildCleanSentText + includeParsedItemNames）走真实清洗路径。
+    const realisticOcrText =
+      '0 Preview Download\\n人\\n四 轩 力 [| 病案 与 国 国 多 临床 诊断 :\\n如 国 . v 检验 目的 : 糖化 血红 蛋白';
+    const sentText = buildCleanSentText(parsed, realisticOcrText, {
+      includeParsedItemNames: true,
+    });
+    const cleaned = cleanAiReportStructured(parsed, sentText);
+    // 整张报告模式走项目列表：items 非空、每个项目字段可被解析
+    expect(cleaned.items.length).toBeGreaterThan(0);
+    expect(cleaned.items.length).toBe((parsed.items as unknown[]).length);
+    for (const it of cleaned.items) {
+      expect(it.name.trim()).not.toBe('');
+      expect(it.result.trim()).not.toBe('');
+      expect(typeof it.unit).toBe('string');
+      expect(typeof it.referenceRange).toBe('string');
+      expect(typeof it.method).toBe('string');
+      expect(it.confirmed).toBe(false);
+      expect(it.standardLabel).toBe('');
+    }
+  });
+
+  it('buildCleanSentText 默认（真实模式）只用 OCR 原文；mock 开关才补入项目名', () => {
+    const parsed = JSON.parse(buildMockRecognizeContent('report')) as Record<string, unknown>;
+    const ocr = '原始 OCR 文本';
+    expect(buildCleanSentText(parsed, ocr)).toBe(ocr); // 真实模式不补
+    const grounded = buildCleanSentText(parsed, ocr, { includeParsedItemNames: true });
+    expect(grounded.startsWith(ocr)).toBe(true);
+    expect(grounded).toContain('糖化血红蛋白A1c'); // 项目名补入，未复制到其它源码
+    expect(buildCleanSentText(null, ocr, { includeParsedItemNames: true })).toBe(ocr);
+  });
+
+  it('isMockStructuredReply：mock debug（无上游尝试）为真，真实 debug 为假', () => {
+    expect(isMockStructuredReply({ upstreamTried: [], selectedUpstream: null })).toBe(true);
+    expect(isMockStructuredReply(null)).toBe(false);
+    expect(
+      isMockStructuredReply({ upstreamTried: ['deepseek'], selectedUpstream: 'deepseek' }),
+    ).toBe(false);
   });
 });
 

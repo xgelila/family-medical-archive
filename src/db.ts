@@ -58,6 +58,8 @@ export async function deleteMemberCascade(memberId: string): Promise<void> {
       await db.items.where('reportId').anyOf(reportIds).delete();
       await db.attachments.where('reportId').anyOf(reportIds).delete();
     }
+    // 清理异常数据：即使报告记录缺失，也不能留下该成员的孤立条目。
+    await db.items.where('memberId').equals(memberId).delete();
   });
 }
 

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { db, deleteReportCascade, now } from '../db';
-import type { AttachmentRecord, Member, Report, ReportDetail, ReportItem } from '../types';
+import { IMAGING_REPORT_TYPES, LAB_REPORT_TYPES, normalizeReportTypes, type AttachmentRecord, type ImagingExam, type ImagingReport, type Member, type Report, type ReportDetail, type ReportItem } from '../types';
 import { mergeReportTypes, loadCustomReportTypes } from '../utils/customReportTypes';
 import { Chip, ConfirmButton, EmptyState, Field } from './Kit';
 import { toDisplayDate } from '../utils/dates';
@@ -9,8 +9,21 @@ export interface ReportFilters {
   memberId: string;
   keyword: string;
   reportType: string;
+  reportKind: '' | 'lab' | 'imaging' | 'other';
   dateFrom: string;
   dateTo: string;
+}
+
+/** Return distinct imaging sub-exams for the list summary, including legacy data. */
+export function getImagingSummaryExams(imaging: ImagingReport): ImagingExam[] {
+  if (imaging.exams && imaging.exams.length > 0) return imaging.exams;
+  return [{
+    examPart: imaging.examPart,
+    examMethod: imaging.examMethod,
+    findings: imaging.findings,
+    impression: imaging.impression,
+    measurements: imaging.measurements,
+  }];
 }
 
 export function ReportManager({
@@ -33,9 +46,12 @@ export function ReportManager({
     memberId: '',
     keyword: '',
     reportType: '',
+    reportKind: '',
     dateFrom: '',
     dateTo: '',
   });
+  // 移动端筛选区默认折叠为「筛选」按钮；展开后展示各筛选字段。
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -70,11 +86,16 @@ export function ReportManager({
   }, [attachments]);
 
   const kw = filters.keyword.trim().toLowerCase();
+  const reportTypesForKind = useMemo(() => {
+    const source = filters.reportKind === 'imaging' ? IMAGING_REPORT_TYPES : filters.reportKind === 'lab' ? LAB_REPORT_TYPES : allReportTypes;
+    return [...new Set([...source, ...reports.filter((r) => !filters.reportKind || (r.reportKind ?? 'lab') === filters.reportKind).flatMap(normalizeReportTypes)])];
+  }, [allReportTypes, filters.reportKind, reports]);
 
   const visibleReports = useMemo(() => {
     return reports
       .filter((r) => (filters.memberId ? r.memberId === filters.memberId : true))
-      .filter((r) => (filters.reportType ? r.reportType === filters.reportType : true))
+      .filter((r) => (filters.reportKind ? (r.reportKind ?? 'lab') === filters.reportKind : true))
+      .filter((r) => (filters.reportType ? normalizeReportTypes(r).includes(filters.reportType) : true))
       .filter((r) => (filters.dateFrom ? r.reportDate >= filters.dateFrom : true))
       .filter((r) => (filters.dateTo ? r.reportDate <= filters.dateTo : true))
       .filter((r) => {
@@ -82,8 +103,18 @@ export function ReportManager({
         const hay = [
           r.hospital,
           r.reportType,
+          ...normalizeReportTypes(r),
           r.title,
           r.notes,
+          r.testPurpose ?? '',
+          ...(r.details ?? []).flatMap((d) => [d.label, d.value]),
+          ...(r.imaging ? getImagingSummaryExams(r.imaging).flatMap((exam) => [
+            exam.examPart,
+            exam.examMethod,
+            exam.findings,
+            exam.impression,
+            exam.measurements,
+          ]) : []),
           ...(itemsByReport.get(r.id) ?? []).flatMap((it) => [
             it.name,
             it.standardLabel ?? '',
@@ -108,6 +139,7 @@ export function ReportManager({
     (filters.memberId ? 1 : 0) +
     (filters.keyword ? 1 : 0) +
     (filters.reportType ? 1 : 0) +
+    (filters.reportKind ? 1 : 0) +
     (filters.dateFrom ? 1 : 0) +
     (filters.dateTo ? 1 : 0);
 
@@ -115,65 +147,86 @@ export function ReportManager({
     <>
       {reports.length > 0 && (
         <div className="toolbar card">
-          <Field label="成员">
-            <select
-              value={filters.memberId}
-              onChange={(e) => setFilters((f) => ({ ...f, memberId: e.target.value }))}
-            >
-              <option value="">全部成员</option>
-              {members.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="报告类型">
-            <select
-              value={filters.reportType}
-              onChange={(e) => setFilters((f) => ({ ...f, reportType: e.target.value }))}
-            >
-              <option value="">全部类型</option>
-              {allReportTypes.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="起始日期">
-            <input
-              type="date"
-              value={filters.dateFrom}
-              onChange={(e) => setFilters((f) => ({ ...f, dateFrom: e.target.value }))}
-            />
-          </Field>
-          <Field label="截止日期">
-            <input
-              type="date"
-              value={filters.dateTo}
-              onChange={(e) => setFilters((f) => ({ ...f, dateTo: e.target.value }))}
-            />
-          </Field>
-          <Field label="关键词" hint="医院 / 类型 / 项目名 / 标准标签 / 数值">
-            <input
-              value={filters.keyword}
-              onChange={(e) => setFilters((f) => ({ ...f, keyword: e.target.value }))}
-              placeholder="如：血糖、甲状腺、5.2"
-            />
-          </Field>
-          {activeFilterCount > 0 && (
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
-              style={{ alignSelf: 'flex-end' }}
-              onClick={() =>
-                setFilters({ memberId: '', keyword: '', reportType: '', dateFrom: '', dateTo: '' })
-              }
-            >
-              清除筛选（{activeFilterCount}）
-            </button>
-          )}
+          <button
+            type="button"
+            className="btn report-filter-toggle"
+            aria-expanded={filtersOpen}
+            onClick={() => setFiltersOpen((v) => !v)}
+          >
+            筛选{activeFilterCount > 0 ? `（${activeFilterCount}）` : ''} {filtersOpen ? '▴' : '▾'}
+          </button>
+          <div className={`report-filters ${filtersOpen ? 'open' : ''}`}>
+            <Field label="成员">
+              <select
+                value={filters.memberId}
+                onChange={(e) => setFilters((f) => ({ ...f, memberId: e.target.value }))}
+              >
+                <option value="">全部成员</option>
+                {members.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="报告大类">
+              <select
+                value={filters.reportKind}
+                onChange={(e) => setFilters((f) => ({ ...f, reportKind: e.target.value as ReportFilters['reportKind'], reportType: '' }))}
+              >
+                <option value="">全部大类</option>
+                <option value="lab">检验</option>
+                <option value="imaging">检查</option>
+                <option value="other">其他</option>
+              </select>
+            </Field>
+            <Field label="报告类型">
+              <select
+                value={filters.reportType}
+                onChange={(e) => setFilters((f) => ({ ...f, reportType: e.target.value }))}
+              >
+                <option value="">全部类型</option>
+                {reportTypesForKind.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="起始日期">
+              <input
+                type="date"
+                value={filters.dateFrom}
+                onChange={(e) => setFilters((f) => ({ ...f, dateFrom: e.target.value }))}
+              />
+            </Field>
+            <Field label="截止日期">
+              <input
+                type="date"
+                value={filters.dateTo}
+                onChange={(e) => setFilters((f) => ({ ...f, dateTo: e.target.value }))}
+              />
+            </Field>
+            <Field label="关键词" hint="医院 / 类型 / 项目名 / 数值">
+              <input
+                value={filters.keyword}
+                onChange={(e) => setFilters((f) => ({ ...f, keyword: e.target.value }))}
+                placeholder="如：血糖、甲状腺、5.2"
+              />
+            </Field>
+            {activeFilterCount > 0 && (
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                style={{ alignSelf: 'flex-end' }}
+                onClick={() =>
+                  setFilters({ memberId: '', keyword: '', reportType: '', reportKind: '', dateFrom: '', dateTo: '' })
+                }
+              >
+                清除筛选（{activeFilterCount}）
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -200,7 +253,16 @@ export function ReportManager({
               <button type="button" className="btn btn-primary" onClick={onCreate}>
                 + 新建报告
               </button>
-            ) : undefined
+            ) : (
+              <div className="btn-row">
+                <button type="button" className="btn btn-ghost" onClick={() => setFilters({ memberId: '', keyword: '', reportType: '', reportKind: '', dateFrom: '', dateTo: '' })}>
+                  清除筛选
+                </button>
+                <button type="button" className="btn btn-primary" onClick={onCreate}>
+                  + 新建报告
+                </button>
+              </div>
+            )
           }
         />
       ) : (
@@ -217,6 +279,7 @@ export function ReportManager({
                 )
               : its;
             const atts = attsByReport.get(r.id) ?? [];
+            const imagingExams = r.imaging ? getImagingSummaryExams(r.imaging) : [];
             const pendingCount = its.filter((it) => !it.confirmed).length;
             return (
               <div key={r.id} className="card report-card">
@@ -228,7 +291,8 @@ export function ReportManager({
                       ) : (
                         <span className="member-tag member-tag-missing">成员缺失</span>
                       )}
-                      <Chip tone="info">{r.reportType || '未分类'}</Chip>
+                      <Chip tone="info">{r.reportKind === 'imaging' ? '检查' : '检验'}</Chip>
+                      {normalizeReportTypes(r).length > 0 ? normalizeReportTypes(r).map((t) => <Chip key={t} tone="info">{t}</Chip>) : <Chip tone="info">未分类</Chip>}
                       {pendingCount > 0 && <Chip tone="warn">{pendingCount} 项待确认</Chip>}
                     </div>
                     <div className="member-meta">
@@ -261,50 +325,27 @@ export function ReportManager({
                   </div>
                 )}
 
-                {its.length > 0 && (
-                  <div className="table-wrap">
-                    <table className="data-table">
-                      <thead>
-                        <tr>
-                          <th>检查项目</th>
-                          <th>结果</th>
-                          <th>单位</th>
-                          <th>参考区间</th>
-                          <th>状态</th>
-                          <th>备注</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {(kw ? matched : its).map((it) => (
-                          <tr key={it.id} className={it.confirmed ? '' : 'row-pending'}>
-                            <td>
-                              {it.name}
-                              {it.standardLabel ? (
-                                <Chip tone="neutral">标签：{it.standardLabel}</Chip>
-                              ) : null}
-                            </td>
-                            <td>
-                              {it.value}
-                              {it.resultKind === 'qualitative' && <Chip tone="neutral">定性</Chip>}
-                            </td>
-                            <td>{it.unit || <span className="dim">缺失</span>}</td>
-                            <td>{it.refRange || '—'}</td>
-                            <td>
-                              <button
-                                type="button"
-                                className={`status-toggle ${it.confirmed ? 'st-ok' : 'st-warn'}`}
-                                onClick={() => void toggleConfirm(it)}
-                                title="点击切换已确认/待确认"
-                              >
-                                {it.confirmed ? '✓ 已确认' : '！待确认'}
-                              </button>
-                            </td>
-                            <td className="dim">{it.notes || '—'}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                {r.reportKind === 'imaging' && r.imaging && (
+                  <div className="report-imaging-summary">
+                    {imagingExams.map((exam, index) => (
+                      <div className="report-imaging-exam" key={`${r.id}-imaging-${index}`}>
+                        {imagingExams.length > 1 && <strong>子检查 {index + 1}<br /></strong>}
+                        <strong>检查部位：</strong>{exam.examPart || '—'}<br />
+                        <strong>检查方法：</strong>{exam.examMethod || '—'}<br />
+                        <strong>测量值：</strong>{exam.measurements.trim() || '未识别到测量值，可手动补充'}<br />
+                        <strong>影像所见：</strong>{exam.findings || '—'}<br />
+                        <strong>结论：</strong>{exam.impression || '—'}
+                      </div>
+                    ))}
                   </div>
+                )}
+                {its.length > 0 && r.reportKind !== 'imaging' && (
+                  <ReportCardItems
+                    items={its}
+                    matched={matched}
+                    kw={kw}
+                    toggleConfirm={toggleConfirm}
+                  />
                 )}
                 {kw && matched.length === 0 && (
                   <div className="dim" style={{ padding: '6px 0' }}>
@@ -319,7 +360,7 @@ export function ReportManager({
                 ) : null}
                 {r.testPurpose ? (
                   <div className="report-test-purpose">
-                    <strong>检验目的：</strong>
+                    <strong>{r.reportKind === 'imaging' ? '检查目的' : '检验目的'}：</strong>
                     {r.testPurpose}
                   </div>
                 ) : null}
@@ -330,6 +371,83 @@ export function ReportManager({
         </div>
       )}
     </>
+  );
+}
+
+/**
+ * 报告卡片内的检查项目区（移动端默认折叠为「查看检查项目」开关，展开后展示表格）。
+ * 状态触摸目标在移动端至少 44px，并带 aria-pressed 可读状态。
+ */
+function ReportCardItems({
+  items,
+  matched,
+  kw,
+  toggleConfirm,
+}: {
+  items: ReportItem[];
+  matched: ReportItem[];
+  kw: string;
+  toggleConfirm: (it: ReportItem) => void;
+}) {
+  // 桌面端默认展开表格；移动端默认折叠（依赖 matchMedia，测试环境走桌面分支）。
+  const [open, setOpen] = useState(
+    () => typeof window === 'undefined' || !window.matchMedia('(max-width: 640px)').matches,
+  );
+  const shown = kw ? matched : items;
+  return (
+    <div className="report-card-items">
+      <button
+        type="button"
+        className="report-items-toggle"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
+        检查项目（{shown.length} 项）{open ? '▴' : '▾'}
+      </button>
+      {open && (
+        <div className="table-wrap">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>状态</th>
+                <th>检查项目</th>
+                <th>结果</th>
+                <th>单位</th>
+                <th>参考区间</th>
+                <th>检验方法</th>
+                <th>备注</th>
+              </tr>
+            </thead>
+            <tbody>
+              {shown.map((it) => (
+                <tr key={it.id} className={it.confirmed ? '' : 'row-pending'}>
+                  <td>
+                    <button
+                      type="button"
+                      className={`status-toggle ${it.confirmed ? 'st-ok' : 'st-warn'}`}
+                      aria-pressed={it.confirmed}
+                      onClick={() => void toggleConfirm(it)}
+                      title="点击切换已确认/待确认"
+                    >
+                      {it.confirmed ? '✓ 已确认' : '！待确认'}
+                    </button>
+                  </td>
+                  <td>{it.name}</td>
+                  <td>
+                    {it.value}
+                    {it.resultKind === 'qualitative' && <Chip tone="neutral">定性</Chip>}
+                  </td>
+                  <td>{it.unit || <span className="dim">缺失</span>}</td>
+                  <td>{it.refRange || '—'}</td>
+                  <td>{it.testMethod || '—'}</td>
+                  <td className="dim">{it.notes || '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
   );
 }
 

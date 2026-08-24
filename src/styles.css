@@ -354,6 +354,47 @@ body {
 }
 
 /* ---------- 表单 ---------- */
+.report-type-dropdown {
+  position: relative;
+}
+.report-type-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 1px solid var(--border, #d8dee8);
+  border-radius: 6px;
+  background: var(--surface, #fff);
+  cursor: pointer;
+  list-style: none;
+}
+.report-type-summary::-webkit-details-marker { display: none; }
+.report-type-menu {
+  position: absolute;
+  z-index: 5;
+  width: 100%;
+  max-height: 240px;
+  overflow-y: auto;
+  margin-top: 4px;
+  padding: 6px;
+  border: 1px solid var(--border, #d8dee8);
+  border-radius: 6px;
+  background: var(--surface, #fff);
+  box-shadow: 0 5px 14px rgba(0,0,0,.12);
+}
+.report-type-option {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-height: 36px;
+  padding: 6px 8px;
+  cursor: pointer;
+}
+.report-type-option:hover { background: var(--surface-muted, #f3f5f8); }
+.report-type-selected { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+.imaging-method-shared { padding: 8px 0; font-size: .9em; }
+
 .form-card h4 {
   margin: 0 0 12px;
 }
@@ -561,10 +602,6 @@ body {
 }
 
 /* ---------- 报告表单 ---------- */
-.report-form .form-grid {
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-}
-
 .att-section {
   margin-top: 16px;
 }
@@ -684,6 +721,29 @@ body {
 
 .col-status {
   min-width: 90px;
+}
+
+/* 状态列固定为检查项目表第一列：横向滚动时保持可见（移动端） */
+.table-wrap .data-table th:first-child,
+.table-wrap .data-table td:first-child {
+  position: sticky;
+  left: 0;
+  background: #fff;
+  z-index: 1;
+  box-shadow: 1px 0 0 var(--line);
+}
+.table-wrap .data-table tbody tr:hover td:first-child {
+  background: #f8fafc;
+}
+.table-wrap .data-table tbody tr.row-pending td:first-child {
+  background: var(--warn-bg);
+}
+
+.confirm-gate-note {
+  color: var(--warn);
+  font-size: 13px;
+  font-weight: 600;
+  margin-right: 8px;
 }
 
 /* ---------- 趋势 ---------- */
@@ -1180,7 +1240,187 @@ body {
   color: #94a3b8;
 }
 
+/* ---------- 全局焦点可见性（高对比，统一 button/a/select/input） ---------- */
+button:focus-visible,
+a:focus-visible,
+select:focus-visible,
+input:focus-visible,
+[tabindex]:focus-visible {
+  outline: 3px solid var(--teal);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* ---------- 核对页加载/错误/待确认栏 ---------- */
+.edit-loading {
+  margin: 8px 0;
+  font-size: 13px;
+}
+.edit-load-error {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0;
+  padding: 8px 12px;
+  background: var(--danger-bg);
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+}
+.pending-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+.item-head-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* ---------- 核对页移动端项目卡片（仅在 max-width:640px 显示） ---------- */
+.item-cards-mobile {
+  display: none;
+}
+.item-card {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 12px;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.item-card-pending {
+  border-color: #fde68a;
+  background: var(--warn-bg);
+}
+.item-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.item-card-idx {
+  color: var(--muted);
+  font-size: 12px;
+}
+.item-card label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.item-card label span {
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+.item-card input {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 14px;
+  color: var(--ink);
+  width: 100%;
+}
+.item-card-result-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.item-card-more-toggle {
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  background: #f8fafc;
+  color: var(--ink-soft);
+  font-size: 13px;
+  cursor: pointer;
+  min-height: 44px;
+}
+.item-card-more {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+  border-top: 1px dashed var(--line);
+}
+.item-card-danger {
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* ---------- 报告列表（ReportManager）移动端 ---------- */
+.report-filter-toggle {
+  display: none;
+}
+/* 桌面端：筛选字段作为 toolbar 网格的直接子项（wrapper 不产生盒子） */
+.report-filters {
+  display: contents;
+}
+.report-items-toggle {
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  background: #f8fafc;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--ink-soft);
+  min-height: 44px;
+  margin-top: 8px;
+}
+.filter-count-badge {
+  margin-left: 6px;
+  font-size: 12px;
+}
+
 /* ---------- 移动端响应式 ---------- */
+/* 趋势记录：桌面表格与移动端纵向卡片互斥，避免主要路径横向滚动。 */
+.trend-records-mobile {
+  display: none;
+}
+.trend-record-card {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: #fff;
+}
+.trend-record-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.trend-record-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 0;
+}
+.trend-record-fields div {
+  min-width: 0;
+}
+.trend-record-fields dt {
+  color: var(--muted);
+  font-size: 12px;
+}
+.trend-record-fields dd {
+  margin: 2px 0 0;
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 960px) {
   .app-main {
     max-width: 100%;
@@ -1190,7 +1430,6 @@ body {
   .stat-grid,
   .card-grid,
   .form-grid,
-  .report-form .form-grid,
   .toolbar,
   .trend-view .toolbar,
   .side-by-side {
@@ -1254,7 +1493,61 @@ body {
   .btn,
   .btn-sm,
   .btn-xs {
-    min-height: 38px;
+    min-height: 44px;
+  }
+
+  /* 移动端只有主要 CTA / 主入口全宽，次要按钮不拉伸成长条 */
+  .btn-primary,
+  .recog-main-cta,
+  .entry-primary {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* 核对页项目表在移动端切换为纵向卡片，隐藏宽表格 */
+  .item-table-desktop {
+    display: none;
+  }
+  .item-cards-mobile {
+    display: flex;
+    flex-direction: column;
+  }
+  .item-head-actions {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  /* 趋势记录改为纵向卡片；规则提示压缩，避免移动端重复长文案。 */
+  .trend-records-desktop {
+    display: none;
+  }
+  .trend-records-mobile {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .trend-rule-note {
+    padding: 8px 10px;
+  }
+
+  /* 报告列表：筛选区折叠为「筛选」按钮，展开后显示字段 */
+  .report-filter-toggle {
+    display: inline-flex;
+    width: 100%;
+    justify-content: center;
+  }
+  .report-filters {
+    display: none;
+  }
+  .report-filters.open {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  /* 状态触摸目标至少 44px */
+  .status-toggle {
+    min-height: 44px;
+    min-width: 44px;
   }
 
   .btn-row,
@@ -1270,20 +1563,6 @@ body {
     align-items: stretch;
   }
 
-  .btn,
-  .btn-sm,
-  .btn-xs,
-  .recog-main-btn,
-  .att-chip,
-  .att-chip-row .btn,
-  .card-actions .btn,
-  .form-actions .btn,
-  .img-editor-foot .btn,
-  .btn-row .btn {
-    width: 100%;
-    justify-content: center;
-  }
-
   .tab-btn {
     min-width: 92px;
     justify-content: center;
@@ -1294,8 +1573,8 @@ body {
   }
 
   .member-avatar {
-    width: 38px;
-    height: 38px;
+    width: 44px;
+    height: 44px;
   }
 
   .att-thumb {

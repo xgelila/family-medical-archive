@@ -149,8 +149,26 @@ export async function buildCleanImport(payload: ExportPayload): Promise<CleanImp
     cleanReports.push({
       id,
       memberId: ensureId(r.memberId, 'm'),
+      reportKind: r.reportKind === 'imaging' || r.reportKind === 'other' ? r.reportKind : 'lab',
+      imaging: r.imaging && typeof r.imaging === 'object' ? {
+        examPart: typeof r.imaging.examPart === 'string' ? r.imaging.examPart : '',
+        examMethod: typeof r.imaging.examMethod === 'string' ? r.imaging.examMethod : '',
+        findings: typeof r.imaging.findings === 'string' ? r.imaging.findings : '',
+        impression: typeof r.imaging.impression === 'string' ? r.imaging.impression : '',
+        measurements: typeof r.imaging.measurements === 'string' ? r.imaging.measurements : '',
+        ...(Array.isArray(r.imaging.exams) ? { exams: r.imaging.exams.filter((e) => e && typeof e === 'object').map((e) => ({
+          examPart: typeof e.examPart === 'string' ? e.examPart : '',
+          ...(typeof e.examMethod === 'string' ? { examMethod: e.examMethod } : {}),
+          findings: typeof e.findings === 'string' ? e.findings : '',
+          impression: typeof e.impression === 'string' ? e.impression : '',
+          measurements: typeof e.measurements === 'string' ? e.measurements : '',
+        })) } : {}),
+      } : undefined,
       hospital: typeof r.hospital === 'string' ? r.hospital : '未填写',
       reportDate: typeof r.reportDate === 'string' ? r.reportDate : '',
+      reportTypes: Array.isArray(r.reportTypes)
+        ? r.reportTypes.filter((type): type is string => typeof type === 'string')
+        : (typeof r.reportType === 'string' && r.reportType ? [r.reportType] : []),
       reportType: typeof r.reportType === 'string' ? r.reportType : '',
       title: typeof r.title === 'string' ? r.title : '',
       notes: typeof r.notes === 'string' ? r.notes : '',
@@ -180,6 +198,7 @@ export async function buildCleanImport(payload: ExportPayload): Promise<CleanImp
       unit: typeof it.unit === 'string' ? it.unit : '',
       refRange: typeof it.refRange === 'string' ? it.refRange : '',
       notes: typeof it.notes === 'string' ? it.notes : '',
+      testMethod: typeof it.testMethod === 'string' ? it.testMethod.trim() : '',
       confirmed: it.confirmed !== false,
       standardLabel: typeof it.standardLabel === 'string' ? it.standardLabel.trim() : '', // 兼容旧数据：缺省视为未设置
       createdAt: typeof it.createdAt === 'number' ? it.createdAt : Date.now(),
@@ -258,6 +277,7 @@ export async function buildCleanImport(payload: ExportPayload): Promise<CleanImp
       id: ensureId(c.id, 'crt'),
       name,
       aliases,
+      ...(c.reportKind === 'imaging' || c.reportKind === 'lab' || c.reportKind === 'other' ? { reportKind: c.reportKind } : {}),
       createdAt: typeof c.createdAt === 'number' ? c.createdAt : Date.now(),
       updatedAt: typeof c.updatedAt === 'number' ? c.updatedAt : Date.now(),
     });

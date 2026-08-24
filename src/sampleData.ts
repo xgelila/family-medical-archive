@@ -13,7 +13,7 @@ export interface SampleBundle {
  * - 跨医院同标签不同单位（空腹血糖 mmol/L vs mg/dL）→ 演示“不可直接比较”并排展示；
  * - 单位缺失（体重一次缺单位）→ 演示不可比较提示；
  * - 甲状腺功能报告（TSH/FT3/FT4/TPOAb/TgAb，显式设置标准标签）与跨年同标签趋势；
- * - 未设置标准标签的条目（尿蛋白/甲状腺超声/总胆固醇）→ 演示不参与跨报告趋势。
+ * - 待确认项目（总胆固醇）→ 演示不参与趋势；标准标签仅作兼容保留，不影响趋势。
  */
 export function buildSampleData(): SampleBundle {
   const t = now();
@@ -169,7 +169,7 @@ export function buildSampleData(): SampleBundle {
     // 单位缺失示例（体重，一处缺单位）→ 并排 + 不可比较提示
     mk(r1, m3, 3, '体重', '72', 'kg', '无', true, '', '体重'),
     mk(r2, m3, 3, '体重', '74.5', '', '无', true, '单位缺失：不连线', '体重'),
-    // 定性条目：未设置标准标签 → 不参与趋势
+    // 定性条目：定性结果不参与趋势
     mk(r1, m3, 4, '尿常规·蛋白', '阴性', '', '阴性', true, '定性条目不参与趋势'),
     // 李建国：甲状腺功能报告（显式标准标签）
     mk(
@@ -198,7 +198,7 @@ export function buildSampleData(): SampleBundle {
       'mmol/L',
       '<5.2',
       false,
-      '待复核：未设置标准标签，不参与趋势',
+      '待确认项目不参与趋势',
       '',
     ),
     // 李建国：次年甲功复查（TSH/FT4 同标签同单位 → 可连线）
@@ -215,7 +215,7 @@ export function buildSampleData(): SampleBundle {
       'TSH',
     ),
     mk(r5, m1, 2, '游离甲状腺素', '17.5', 'pmol/L', '12.0-22.0', true, '', 'FT4'),
-    // 影像类项目：未设置标准标签 → 不参与趋势
+    // 影像类项目：定性结果不参与趋势
     mk(
       r5,
       m1,
@@ -225,7 +225,7 @@ export function buildSampleData(): SampleBundle {
       '',
       '大小正常',
       true,
-      '影像类条目未设置标准标签，不参与趋势',
+      '定性结果不参与趋势',
     ),
     // 王秀兰
     mk(r4, m2, 1, '身高', '160', 'cm', '无', true, '', '身高'),

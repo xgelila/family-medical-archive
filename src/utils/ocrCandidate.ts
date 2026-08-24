@@ -1,5 +1,5 @@
 import type { ItemDraft } from './labels';
-import { REPORT_TYPES, type LabelRecommendationStatus, type ReportDetail } from '../types';
+import { REPORT_TYPES, type LabelRecommendationStatus, type ReportDetail, type ReportKind, type ImagingReport, type ImagingExam } from '../types';
 
 /**
  * OCR / AI 候选项的共享数据类型与转换（纯函数，可单测）。
@@ -60,9 +60,14 @@ export interface OcrCandidate {
 
 /** 整张报告识别的报告信息候选（全部待用户确认） */
 export interface ReportScanMeta {
+  reportKind: ReportKind;
+  imaging: ImagingReport;
+  exams?: ImagingExam[];
   hospital: string;
   reportDate: string;
   reportType: string;
+  /** 新版多选报告类型；缺省时由 reportType 回退。 */
+  reportTypes?: string[];
   /** 检验目的（固定报告字段，独立于 details/附件信息；识别后待用户确认） */
   testPurpose: string;
   title: string;
@@ -96,20 +101,18 @@ export function testPurposeToReportType(testPurpose: string): string {
  * 候选项 → 报告表单中的草稿行：恒为待确认；标准标签仅在用户显式采用推荐后（chosenLabel）
  * 才带出，否则恒为空。可直接追加到批量编辑列表。
  *
- * 备注：固定 schema 的 item.method（检验方法）低风险地并入草稿 notes（方法：…），
- * 从而随既有 notes 字段一并保存，避免数据库结构改动。
+ * 备注：固定 schema 的 item.method（检验方法）进入草稿的 testMethod 字段（检查项目字段），
+ * 与单位、参考区间并列保存；不再并入 notes/备注。
  */
 export function ocrCandidateToDraft(c: OcrCandidate): ItemDraft {
-  const notesParts: string[] = [];
-  if (c.method && c.method.trim() !== '') notesParts.push(`方法：${c.method}`);
-  const notes = notesParts.join(' ');
   return {
     name: c.name,
     resultKind: c.resultKind,
     value: c.value,
     unit: c.unit,
     refRange: c.refRange,
-    notes,
+    testMethod: c.method || '',
+    notes: '',
     confirmed: false,
     standardLabel: c.standardLabel || c.chosenLabel || '', // 采用后 = 已确认标签；未采用 = ''
   };

@@ -26,6 +26,55 @@ export interface AttachmentRecord {
 
 export type ItemResultKind = 'numeric' | 'qualitative';
 
+export type ReportKind = 'lab' | 'imaging' | 'other';
+
+/** 报告大类对应的受控报告类型选项。other 仅用于旧数据兼容。 */
+export const LAB_REPORT_TYPES = [
+  '综合体检', '血常规', '尿常规', '肝功能', '肾功能', '血脂', '血糖',
+  '糖化血红蛋白', '甲状腺功能', '肿瘤标志物',
+] as const;
+/** 检查大类下的少量受控类型；「其他检查」保留为自定义/旧数据兼容入口。 */
+export const IMAGING_REPORT_TYPES = ['腹部超声', '甲状腺超声', '乳腺超声', '其他检查'] as const;
+
+/** 影像报告的结构化字段（不拆入检验项目）。 */
+export interface ImagingExam {
+  examPart: string;
+  examMethod?: string;
+  findings: string;
+  impression: string;
+  measurements: string;
+}
+
+export interface ImagingReport {
+  /** Legacy single-exam fields retained for backwards compatibility. */
+  examPart: string;
+  examMethod: string;
+  findings: string;
+  impression: string;
+  measurements: string;
+  exams?: ImagingExam[];
+}
+
+/** Normalize legacy imaging data without inventing an empty exam. */
+export function normalizeImagingReport(value?: Partial<ImagingReport> | null): ImagingReport | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const legacy = {
+    examPart: typeof value.examPart === 'string' ? value.examPart : '',
+    examMethod: typeof value.examMethod === 'string' ? value.examMethod : '',
+    findings: typeof value.findings === 'string' ? value.findings : '',
+    impression: typeof value.impression === 'string' ? value.impression : '',
+    measurements: typeof value.measurements === 'string' ? value.measurements : '',
+  };
+  const exams = Array.isArray(value.exams) ? value.exams.filter((e): e is ImagingExam => !!e && typeof e === 'object').map((e) => ({
+    examPart: typeof e.examPart === 'string' ? e.examPart : '',
+    ...(typeof e.examMethod === 'string' ? { examMethod: e.examMethod } : {}),
+    findings: typeof e.findings === 'string' ? e.findings : '',
+    impression: typeof e.impression === 'string' ? e.impression : '',
+    measurements: typeof e.measurements === 'string' ? e.measurements : '',
+  })) : undefined;
+  return { ...legacy, ...(exams ? { exams } : {}) };
+}
+
 // 体检条目（一张报告下的一个检查项目）
 export interface ReportItem {
   id: string;
@@ -37,11 +86,13 @@ export interface ReportItem {
   value: string; // 原始录入文本（数值型填数字原文，定性填 阴性/阳性 等）
   unit: string; // 单位，如 g/L；空串表示缺失
   refRange: string; // 参考区间原文，如 130-175
+  /** 检验/试验方法（如“化学发光法”“胶体金法”），检查项目字段；空串 = 缺失/未识别。 */
+  testMethod?: string;
   notes: string; // 备注
   confirmed: boolean; // true=已确认，false=待确认
   /**
    * 可选标准标签（如 TSH）。仅由用户显式选择/填写，绝不对项目名做自动映射、模糊匹配或猜测。
-   * 空串/缺省 = 未设置，该条目不参与跨报告趋势。
+   * 空串/缺省 = 未设置；标准标签仅作兼容保留，不影响趋势。待确认项目不参与趋势。
    */
   standardLabel?: string;
   createdAt: number;
@@ -68,8 +119,20 @@ export interface CustomReportType {
   name: string;
   /** 已确认的检验目的别名（原文，trim 后折叠空白；用于识别 testPurpose 匹配） */
   aliases: string[];
+  /** 自定义类型所属大类，防止检验/检查选项串类。旧数据缺省按 lab 兼容。 */
+  reportKind?: ReportKind;
   createdAt: number;
   updatedAt: number;
+}
+
+/** 归一化报告类型：优先使用新多值字段，旧数据回退为单元素数组。 */
+export function normalizeReportTypes(report: Pick<Report, 'reportTypes' | 'reportType'>): string[] {
+  const types = Array.isArray(report.reportTypes)
+    ? report.reportTypes.filter((type): type is string => typeof type === 'string').map((type) => type.trim()).filter(Boolean)
+    : [];
+  if (types.length > 0) return [...new Set(types)];
+  const legacy = typeof report.reportType === 'string' ? report.reportType.trim() : '';
+  return legacy ? [legacy] : [];
 }
 
 export interface Report {
@@ -77,9 +140,16 @@ export interface Report {
   memberId: string;
   hospital: string; // 医院/体检机构
   reportDate: string; // YYYY-MM-DD
+  /** 新版可同时保存多个检查/报告类型。 */
+  reportTypes?: string[];
+  /** 兼容旧数据；保存时通常为 reportTypes 第一项。 */
   reportType: string; // 体检类型
+  /** 报告大类；旧数据缺失时按 lab 处理。 */
+  reportKind?: ReportKind;
   /** 检验目的（固定报告字段，独立于 details 附加信息；不混入附件信息或通用附加信息） */
   testPurpose?: string;
+  /** 影像报告字段；lab/other 可缺省。 */
+  imaging?: ImagingReport;
   title: string;
   notes: string;
   /** 附加元数据（送检医生/检验者/审核者/采样/接收/打印日期/临床诊断等），可选，向后兼容 */
@@ -167,7 +237,8 @@ export const REPORT_TYPES = [
   '肝功能',
   '肾功能',
   '血脂',
-  '血糖/糖化血红蛋白',
+  '血糖',
+  '糖化血红蛋白',
   '甲状腺功能',
   '肿瘤标志物',
   '影像检查',
@@ -180,10 +251,20 @@ export type ReportType = (typeof REPORT_TYPES)[number];
 export const THYROID_REPORT_TYPE = '甲状腺功能' as const;
 
 /**
- * 血糖类报告类型的精确标识（血糖常用项目快速添加区只在该严格选项下出现）。
- * 与 REPORT_TYPES 中既有的严格选项「血糖/糖化血红蛋白」一致（不含其他自由文本）。
+ * 血糖报告类型的精确标识（血糖常用项目快速添加区在该严格选项下出现）。
+ * 与 REPORT_TYPES 中既有的严格选项「血糖」一致（不含其他自由文本）。
  */
-export const GLUCOSE_REPORT_TYPE = '血糖/糖化血红蛋白' as const;
+export const GLUCOSE_REPORT_TYPE = '血糖' as const;
+
+/** 糖化血红蛋白报告类型的精确标识（同属血糖快速添加区）。 */
+export const HBA1C_REPORT_TYPE = '糖化血红蛋白' as const;
+
+/**
+ * 旧版合并报告类型「血糖/糖化血红蛋白」——拆分前的历史保存值。
+ * 仅用于「保留原值显示」与「编辑旧报告时保留快速添加」的兼容用途；
+ * 绝不作为可选报告类型加入 REPORT_TYPES，也绝不把历史记录强行判定为「血糖」或「糖化血红蛋白」。
+ */
+export const LEGACY_GLUCOSE_COMBINED_TYPE = '血糖/糖化血红蛋白' as const;
 
 /**
  * 甲功常用项目标准标签候选——首版仅提供这 5 个明确、精确的候选项。

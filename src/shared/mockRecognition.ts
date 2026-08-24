@@ -24,6 +24,7 @@ import { fileURLToPath } from 'node:url';
 import type { RecognizeMode } from './recognizeProtocol';
 import {
   emptyStructureReport,
+  emptyStructureImaging,
   type StructureExtraField,
   type StructureItem,
   type StructureNote,
@@ -103,6 +104,7 @@ export interface MockStructuredPayload {
   extraFields: StructureExtraField[];
   notes: StructureNote[];
   unresolvedText: string;
+  imaging: ReturnType<typeof emptyStructureImaging>;
 }
 
 /** details.label → report 固定字段（命中则写入 report，未命中则作为 extraFields）。 */
@@ -161,11 +163,13 @@ export function adaptSampleToPayload(
 
   const unresolved: string[] = [];
   const extraFields: StructureExtraField[] = [];
+  const imaging = emptyStructureImaging();
 
   if (reportRec) {
     report.hospital = reportRec.hospital ?? '';
     report.reportDate = reportRec.reportDate ?? '';
     report.reportType = reportRec.reportType ?? '';
+    report.reportTypes = report.reportType ? [report.reportType] : [];
     report.title = reportRec.title ?? '';
 
     for (const d of reportRec.details ?? []) {
@@ -178,7 +182,8 @@ export function adaptSampleToPayload(
       }
       const key = DETAIL_REPORT_KEY[label];
       if (key) {
-        report[key] = value;
+        if (key === 'reportTypes') report.reportTypes = value ? [value] : [];
+        else report[key] = value as never;
       } else {
         extraFields.push({ section: sectionForLabel(label), key: label, value, sourceText: label });
       }
@@ -208,10 +213,11 @@ export function adaptSampleToPayload(
       extraFields: [],
       notes: [],
       unresolvedText: '',
+      imaging,
     };
   }
 
-  return { report, items, extraFields, notes, unresolvedText: unresolved.join('\n') };
+  return { report, items, extraFields, notes, unresolvedText: unresolved.join('\n'), imaging };
 }
 
 /* ------------------------------------------------------------------ *

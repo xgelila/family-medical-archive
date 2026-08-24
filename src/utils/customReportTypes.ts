@@ -1,5 +1,5 @@
 import { db, now, uid } from '../db';
-import { REPORT_TYPES, type CustomReportType } from '../types';
+import { REPORT_TYPES, type CustomReportType, type ReportKind } from '../types';
 
 /**
  * 用户自定义报告类型集合（持久化，家庭级/本地）。
@@ -27,7 +27,7 @@ export function normalizeAlias(alias: string): string {
 export const MAX_CUSTOM_TYPE_NAME = 20;
 
 /** 合并内置 + 自定义类型（去重，内置在前），供下拉/筛选/统计使用。 */
-export function mergeReportTypes(custom: readonly Pick<CustomReportType, 'name'>[]): string[] {
+export function mergeReportTypes(custom: readonly Pick<CustomReportType, 'name'>[], reportKind?: ReportKind): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
   for (const t of REPORT_TYPES) {
@@ -37,6 +37,7 @@ export function mergeReportTypes(custom: readonly Pick<CustomReportType, 'name'>
     }
   }
   for (const c of custom) {
+    if (reportKind && 'reportKind' in c && c.reportKind && c.reportKind !== reportKind) continue;
     const n = normalizeReportTypeName(c.name);
     if (n !== '' && !seen.has(n)) {
       seen.add(n);
@@ -74,15 +75,17 @@ export function validateCustomReportTypeName(
  */
 export function matchTestPurposeToType(
   testPurpose: string,
-  custom: readonly Pick<CustomReportType, 'name' | 'aliases'>[],
+  custom: readonly Pick<CustomReportType, 'name' | 'aliases' | 'reportKind'>[],
+  reportKind?: ReportKind,
 ): string {
   const p = (testPurpose ?? '').trim();
   if (p === '') return '';
-  for (const t of mergeReportTypes(custom)) {
+  for (const t of mergeReportTypes(custom, reportKind)) {
     if (p.includes(t)) return t;
   }
   // 已确认别名：别名原文命中即映射到所属自定义类型（仅精确/包含命中）
   for (const c of custom) {
+    if (reportKind && c.reportKind && c.reportKind !== reportKind) continue;
     for (const alias of c.aliases ?? []) {
       if (alias !== '' && p.includes(alias)) return c.name;
     }
@@ -108,6 +111,7 @@ export async function loadAllReportTypes(): Promise<string[]> {
 export async function addCustomReportType(
   name: string,
   aliases: readonly string[] = [],
+  reportKind?: ReportKind,
 ): Promise<CustomReportType | null> {
   const custom = await loadCustomReportTypes();
   const existing = mergeReportTypes(custom);
@@ -120,6 +124,7 @@ export async function addCustomReportType(
     aliases: [
       ...new Set(aliases.map(normalizeAlias).filter((a) => a !== '' && a !== v.normalized)),
     ],
+    ...(reportKind ? { reportKind } : {}),
     createdAt: ts,
     updatedAt: ts,
   };

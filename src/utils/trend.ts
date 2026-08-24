@@ -1,4 +1,4 @@
-import type { Report, ReportItem } from '../types';
+import { normalizeReportTypes, type Report, type ReportItem } from '../types';
 
 /**
  * 趋势分析（纯函数，可单测）：
@@ -94,11 +94,17 @@ export function buildTrendPoint(it: ReportItem, report: Report | undefined): Tre
   };
 }
 
-export function analyzeTrend(items: ReportItem[], reportsById: Map<string, Report>): TrendAnalysis {
+export function analyzeTrend(items: ReportItem[], reportsById: Map<string, Report>, reportType?: string | string[]): TrendAnalysis {
   // 仅「已确认 + 数值型 + 有数值」的条目进入趋势。
   // 不再要求标准标签；趋势主键只按检查项名称分组。
+  const requestedTypes = reportType ? (Array.isArray(reportType) ? reportType : [reportType]).filter(Boolean) : [];
   const eligible = items.filter(
-    (i) => i.resultKind === 'numeric' && i.value.trim() !== '' && i.confirmed !== false,
+    (i) => {
+      const report = reportsById.get(i.reportId);
+      if (!report || (report.reportKind ?? 'lab') !== 'lab') return false;
+      if (requestedTypes.length > 0 && !requestedTypes.some((type) => normalizeReportTypes(report).includes(type))) return false;
+      return i.resultKind === 'numeric' && i.value.trim() !== '' && i.confirmed !== false;
+    },
   );
   if (eligible.length === 0) {
     return {

@@ -48,6 +48,34 @@ describe('parseAiReplyContent', () => {
 });
 
 describe('cleanAiStructured（schema 校验与清洗）', () => {
+  it('保留影像并列子检查，即使第二项字段不完整也不合并', () => {
+    const got = cleanAiReportStructured({
+      report: { reportKind: 'imaging' },
+      imaging: {
+        exams: [
+          { examPart: '甲状腺及颈部淋巴结', examMethod: '彩超', findings: '甲状腺所见', impression: '', measurements: '' },
+          { examPart: '乳腺及腋下淋巴结', examMethod: '彩超', findings: '', impression: '', measurements: '' },
+        ],
+      },
+      items: [],
+    }, '甲状腺及颈部淋巴结彩超检查，乳腺及腋下淋巴结彩超检查');
+    expect(got.report.reportKind).toBe('imaging');
+    expect(got.imaging.exams).toHaveLength(2);
+    expect(got.imaging.exams?.map((exam) => exam.examPart)).toEqual([
+      '甲状腺及颈部淋巴结', '乳腺及腋下淋巴结',
+    ]);
+    expect(got.imaging.exams?.[1].findings).toBe('');
+    expect(got.items).toHaveLength(0);
+  });
+
+  it('旧版影像单项字段仍归一为一个子检查', () => {
+    const got = cleanAiReportStructured({
+      report: { reportKind: 'imaging' },
+      imaging: { examPart: '甲状腺', findings: '所见' },
+    }, '甲状腺');
+    expect(got.imaging.exams).toHaveLength(1);
+  });
+
   const SENT = '血红蛋白 145 g/L 130-175\n血小板 200 10^9/L 125-350';
 
   it('合法返回：逐项清洗，恒为待确认、无标准标签，confidence 收敛', () => {
@@ -559,14 +587,14 @@ describe('STRUCTURE_SYSTEM_PROMPT / REPORT_STRUCTURE_SYSTEM_PROMPT（极简服�
     expect(STRUCTURE_SYSTEM_PROMPT).not.toContain('别名');
   });
 
-  it('提示词只给通用规则：name 结合医学常识纠正 OCR 错误，sourceText 逐字溯源，不枚举具体项目', () => {
+  it('提示词要求数值与项目字段逐字溯源，不进行 OCR 纠正或数值推断', () => {
     expect(STRUCTURE_SYSTEM_PROMPT).toContain('逐字');
-    expect(STRUCTURE_SYSTEM_PROMPT).toContain('结合医学常识识别正确名称');
+    expect(STRUCTURE_SYSTEM_PROMPT).toContain('不得纠正');
+    expect(STRUCTURE_SYSTEM_PROMPT).toContain('1.1');
+    expect(STRUCTURE_SYSTEM_PROMPT).toContain('1.2-2.4');
     expect(STRUCTURE_SYSTEM_PROMPT).not.toContain('Al→A1');
-    expect(STRUCTURE_SYSTEM_PROMPT).not.toContain('保持原文用字');
-    expect(REPORT_STRUCTURE_SYSTEM_PROMPT).toContain('结合医学常识识别正确名称');
-    expect(REPORT_STRUCTURE_SYSTEM_PROMPT).not.toContain('Al→A1');
-    expect(REPORT_STRUCTURE_SYSTEM_PROMPT).not.toContain('保持原文用字');
+    expect(REPORT_STRUCTURE_SYSTEM_PROMPT).toContain('不得纠正');
+    expect(REPORT_STRUCTURE_SYSTEM_PROMPT).toContain('不得换算');
   });
 
   it('整张报告提示词：报告信息候选字段 + 严格报告类型选项 + 无标签上下文', () => {

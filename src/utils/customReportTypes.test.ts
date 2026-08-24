@@ -74,6 +74,15 @@ describe('normalizeReportTypeName / validateCustomReportTypeName', () => {
     expect([...REPORT_TYPES]).toContain('血常规'); // 内置不被修改
   });
 
+  it('拆分后：血糖 / 糖化血红蛋白 均为内置，拒绝作为自定义类型新增（去重生效）', () => {
+    expect(validateCustomReportTypeName('血糖', [...REPORT_TYPES]).ok).toBe(false);
+    expect(validateCustomReportTypeName('糖化血红蛋白', [...REPORT_TYPES]).ok).toBe(false);
+    // 合并去重也不含重复
+    const merged = mergeReportTypes([]);
+    expect(merged.filter((t) => t === '血糖')).toHaveLength(1);
+    expect(merged.filter((t) => t === '糖化血红蛋白')).toHaveLength(1);
+  });
+
   it('与已有自定义类型重复：拒绝新增', () => {
     const v = validateCustomReportTypeName('心脏超声', ['心脏超声']);
     expect(v.ok).toBe(false);
@@ -90,6 +99,16 @@ describe('matchTestPurposeToType（testPurpose 严格匹配：内置/用户类�
   it('匹配内置类型（精确/包含命中）', () => {
     expect(matchTestPurposeToType('血常规检查', [])).toBe('血常规');
     expect(matchTestPurposeToType('肝功能检验', [])).toBe('肝功能');
+  });
+
+  it('拆分后：血糖 / 糖化血红蛋白 独立匹配，不互相误归', () => {
+    expect(matchTestPurposeToType('血糖', [])).toBe('血糖');
+    expect(matchTestPurposeToType('糖化血红蛋白', [])).toBe('糖化血红蛋白');
+    expect(matchTestPurposeToType('空腹血糖', [])).toBe('血糖');
+    expect(matchTestPurposeToType('糖化血红蛋白A1c', [])).toBe('糖化血红蛋白');
+    expect(matchTestPurposeToType('糖化血红蛋白', [])).not.toBe('血糖');
+    expect(matchTestPurposeToType('血糖', [])).not.toBe('糖化血红蛋白');
+    expect(matchTestPurposeToType('血红蛋白', [])).toBe(''); // 普通血红蛋白 仍非受控类型
   });
 
   it('匹配用户自定义类型名称', () => {

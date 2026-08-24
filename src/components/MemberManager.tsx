@@ -12,6 +12,7 @@ export function MemberManager({ refreshKey, bump }: { refreshKey: number; bump: 
   const [counts, setCounts] = useState<Map<string, { reports: number; items: number }>>(new Map());
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Member | null>(null);
+  const [deleteError, setDeleteError] = useState('');
 
   const reload = async () => {
     const list = await db.members.orderBy('createdAt').toArray();
@@ -54,8 +55,13 @@ export function MemberManager({ refreshKey, bump }: { refreshKey: number; bump: 
   };
 
   const remove = async (m: Member) => {
-    await deleteMemberCascade(m.id);
-    bump();
+    setDeleteError('');
+    try {
+      await deleteMemberCascade(m.id);
+      bump();
+    } catch (e) {
+      setDeleteError(`删除失败：${e instanceof Error ? e.message : String(e)}`);
+    }
   };
 
   return (
@@ -67,6 +73,7 @@ export function MemberManager({ refreshKey, bump }: { refreshKey: number; bump: 
         </button>
       }
     >
+      {deleteError && <div className="notice notice-err" role="alert">{deleteError}</div>}
       {formOpen && (
         <MemberForm
           initial={editing ?? EMPTY_MEMBER}
@@ -113,7 +120,7 @@ export function MemberManager({ refreshKey, bump }: { refreshKey: number; bump: 
                   </button>
                   <ConfirmButton
                     label="删除"
-                    confirmText={`删除成员「${m.name}」及其全部报告/附件`}
+                    confirmText={`删除成员「${m.name}」将同时删除其所有报告、检查项目和附件，且不可恢复`}
                     danger
                     small
                     onConfirm={() => void remove(m)}

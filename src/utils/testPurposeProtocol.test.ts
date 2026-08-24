@@ -89,6 +89,16 @@ describe('映射：testPurpose 优先规范化映射为受控 REPORT_TYPES，无
     expect(testPurposeToReportType('甲状腺功能复查')).toBe('甲状腺功能');
   });
 
+  it('拆分后：血糖 / 糖化血红蛋白 独立映射，不互相误归', () => {
+    expect(testPurposeToReportType('血糖')).toBe('血糖');
+    expect(testPurposeToReportType('糖化血红蛋白')).toBe('糖化血红蛋白');
+    expect(testPurposeToReportType('空腹血糖')).toBe('血糖');
+    expect(testPurposeToReportType('糖化血红蛋白Alc')).toBe('糖化血红蛋白');
+    expect(testPurposeToReportType('血红蛋白')).toBe(''); // 普通血红蛋白 仍非受控类型
+    expect(testPurposeToReportType('糖化血红蛋白')).not.toBe('血糖');
+    expect(testPurposeToReportType('血糖')).not.toBe('糖化血红蛋白');
+  });
+
   it('无法映射到受控 REPORT_TYPES 时返回空串（不伪造类型）', () => {
     expect(testPurposeToReportType('健康体检')).toBe('');
     expect(testPurposeToReportType('年度复查')).toBe('');

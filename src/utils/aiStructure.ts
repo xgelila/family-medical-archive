@@ -4,7 +4,9 @@ import type { LabelRecommendationStatus } from '../types';
 import {
   EXTRA_FIELD_SECTIONS,
   emptyStructureReport,
+  emptyStructureImaging,
   type StructureReport,
+  type StructureImaging,
 } from '../shared/structureSchema';
 
 /**
@@ -64,6 +66,8 @@ export interface AiRejectedItem {
 }
 
 /** 固定 report 字段 + 兼容旧式的 reportType/title（默认空，仅用于回填表单）。 */
+export interface AiImagingFields extends StructureImaging {}
+
 export interface AiReportFields extends StructureReport {
   /** 兼容旧式输出（新固定 schema 已不再含）；默认 '' */
   reportType: string;
@@ -74,6 +78,7 @@ export interface AiReportFields extends StructureReport {
 /** 统一的清洗结果（report/items 两种模式共用）。 */
 export interface AiCleanResult {
   report: AiReportFields;
+  imaging: AiImagingFields;
   items: AiStructuredItem[];
   extraFields: AiStructuredExtraField[];
   notes: AiStructuredNote[];
@@ -81,9 +86,52 @@ export interface AiCleanResult {
   rejected: AiRejectedItem[];
 }
 
+/* ------------------------------------------------------------------ *
+ * mock 适配：让 sample 的 ground-truth 项目穿过真实清洗路径。
+ * ------------------------------------------------------------------ */
+
+/**
+ * 判断结构化响应是否来自开发 mock（仅本机 dev）。
+ * 依据服务端 debug：mock 分支不尝试任何上游（upstreamTried 为空、selectedUpstream 为 null）。
+ * 真实模式恒有至少一次上游尝试，因此该判据可靠且无需改动响应结构。
+ */
+export function isMockStructuredReply(
+  server: { upstreamTried: readonly string[]; selectedUpstream: string | null } | null,
+): boolean {
+  return server !== null && server.upstreamTried.length === 0 && server.selectedUpstream === null;
+}
+
+/**
+ * 生成「整理」清洗所用的 grounding 文本。
+ * - 真实模式：直接用 OCR 原文（sourceText 由模型从原文逐字抽取，必须能命中）；
+ * - mock 模式（includeParsedItemNames）：sample 项目的 sourceText=项目名，无法在真实 OCR
+ *   原文中逐字命中（OCR 会打散字符），故把识别返回的项目名补入 grounding 文本，
+ *   使**真实清洗路径**保留这些 ground-truth 项目（不做任何医学猜测，不改响应结构）。
+ * 不把健康数据复制到其它源码：仅使用本次识别响应中已返回的项目名。
+ */
+export function buildCleanSentText(
+  parsed: unknown,
+  rawText: string,
+  opts: { includeParsedItemNames?: boolean } = {},
+): string {
+  if (!opts.includeParsedItemNames) return rawText;
+  if (!isPlainObject(parsed)) return rawText;
+  const items = pickByAlias(parsed, TOP_ALIASES, 'items');
+  if (!Array.isArray(items)) return rawText;
+  const names: string[] = [];
+  for (const it of items) {
+    if (!isPlainObject(it)) continue;
+    const n = readString(it, ITEM_ALIASES, 'name').trim();
+    if (n !== '') names.push(n);
+  }
+  if (names.length === 0) return rawText;
+  return [rawText, ...names].join('\n');
+}
+
 export function emptyAiCleanResult(): AiCleanResult {
   return {
     report: { ...emptyStructureReport(), reportType: '', title: '' },
+    imaging: emptyStructureImaging(),
     items: [],
     extraFields: [],
     notes: [],
@@ -166,6 +214,7 @@ type AliasMap = Record<string, readonly string[]>;
 /** 顶层 key 别名（值 → 固定顶层 key）。 */
 const TOP_ALIASES: AliasMap = {
   report: ['report', '报告', '报告信息', '头部', '头部信息'],
+  imaging: ['imaging', '影像', '影像信息', '影像报告'],
   items: [
     'items',
     'itemList',
@@ -184,6 +233,7 @@ const TOP_ALIASES: AliasMap = {
 
 /** report 字段别名（值 → 固定 report key）。 */
 const REPORT_ALIASES: AliasMap = {
+  reportKind: ['reportKind', '报告大类', '报告类别'],
   hospital: ['hospital', '医院', '医院名称', '机构', '体检机构', '医疗机构'],
   branch: ['branch', '分院', '院区', '院区名称'],
   reportNo: ['reportNo', '报告编号', '报告号', '编号', '检验编号', '报告单号'],
@@ -201,8 +251,18 @@ const REPORT_ALIASES: AliasMap = {
   inspector: ['inspector', '检验者', '检验人员', '操作者', '检验技师'],
   reviewer: ['reviewer', '审核者', '审核人', '复核者', '签发人', '审核医师'],
   // 兼容旧式 report 字段（新固定 schema 已不再含，仅供回填）
+  reportTypes: ['reportTypes', '报告类型列表', '检查类别列表', '体检类型列表'],
   reportType: ['reportType', '报告类型', '检查类别', '体检类型'],
   title: ['title', '标题', '报告标题'],
+};
+
+const IMAGING_ALIASES: AliasMap = {
+  exams: ['exams', '检查部位列表', '子检查', '检查列表'],
+  examPart: ['examPart', '检查部位', '部位'],
+  examMethod: ['examMethod', '检查方式', '检查方法', '方式'],
+  findings: ['findings', '所见', '影像所见'],
+  impression: ['impression', '结论', '影像结论', '诊断意见'],
+  measurements: ['measurements', '测量值', '测量', '影像测量'],
 };
 
 /** item 字段别名（值 → 固定 item key）。 */
@@ -245,6 +305,12 @@ function readString(obj: Record<string, unknown>, map: AliasMap, canonical: stri
   return toStringField(pickByAlias(obj, map, canonical));
 }
 
+function readStringArray(obj: Record<string, unknown>, map: AliasMap, canonical: string): string[] {
+  const value = pickByAlias(obj, map, canonical);
+  if (!Array.isArray(value)) return [];
+  return [...new Set(value.filter((item): item is string => typeof item === 'string').map((item) => item.trim()).filter(Boolean))];
+}
+
 /** 对单个 item 条目清洗（缺字段补空；是否接受由 validateItem 决定）。 */
 function cleanRawItem(raw: Record<string, unknown>): AiStructuredItem {
   const name = readString(raw, ITEM_ALIASES, 'name');
@@ -268,12 +334,38 @@ function cleanRawItem(raw: Record<string, unknown>): AiStructuredItem {
 }
 
 /** 清洗 report 对象（缺字段补空；兼容旧 reportType/title）。 */
+function cleanImaging(raw: unknown): AiImagingFields {
+  const base = emptyStructureImaging();
+  if (!isPlainObject(raw)) return base;
+  const out: AiImagingFields = { ...base };
+  for (const key of ['examPart', 'examMethod', 'findings', 'impression', 'measurements'] as const) {
+    out[key] = readString(raw, IMAGING_ALIASES, key);
+  }
+  const rawExams = pickByAlias(raw, IMAGING_ALIASES, 'exams');
+  if (Array.isArray(rawExams)) {
+    out.exams = rawExams.filter(isPlainObject).map((exam) => ({
+      examPart: readString(exam, IMAGING_ALIASES, 'examPart'),
+      examMethod: readString(exam, IMAGING_ALIASES, 'examMethod'),
+      findings: readString(exam, IMAGING_ALIASES, 'findings'),
+      impression: readString(exam, IMAGING_ALIASES, 'impression'),
+      measurements: readString(exam, IMAGING_ALIASES, 'measurements'),
+    }));
+  } else if (out.examPart || out.examMethod || out.findings || out.impression || out.measurements) {
+    out.exams = [{ examPart: out.examPart, examMethod: out.examMethod, findings: out.findings, impression: out.impression, measurements: out.measurements }];
+  }
+  return out;
+}
+
 function cleanReport(raw: unknown): AiReportFields {
   const base = emptyAiCleanResult().report;
   if (!isPlainObject(raw)) return base;
   const out: AiReportFields = { ...base };
+  out.reportTypes = readStringArray(raw, REPORT_ALIASES, 'reportTypes');
+  out.reportType = readString(raw, REPORT_ALIASES, 'reportType');
+  if (out.reportTypes.length === 0 && out.reportType.trim() !== '') out.reportTypes = [out.reportType.trim()];
   for (const key of Object.keys(base) as (keyof AiReportFields)[]) {
-    out[key] = readString(raw, REPORT_ALIASES, key);
+    if (key === 'reportTypes' || key === 'reportType') continue;
+    out[key] = readString(raw, REPORT_ALIASES, key) as never;
   }
   return out;
 }
@@ -324,6 +416,7 @@ function cleanPayload(payload: unknown, sentText: string): AiCleanResult {
   if (!isPlainObject(payload)) return base;
 
   const report = cleanReport(pickByAlias(payload, TOP_ALIASES, 'report'));
+  const imaging = cleanImaging(pickByAlias(payload, TOP_ALIASES, 'imaging'));
 
   const items: AiStructuredItem[] = [];
   const rejected: AiRejectedItem[] = [];
@@ -348,7 +441,10 @@ function cleanPayload(payload: unknown, sentText: string): AiCleanResult {
   const notes = cleanNotes(pickByAlias(payload, TOP_ALIASES, 'notes'));
   const unresolvedText = readString(payload, TOP_ALIASES, 'unresolvedText').trim();
 
-  return { report, items, extraFields, notes, unresolvedText, rejected };
+  // 影像/other 不产生检验项目；旧响应缺失 reportKind 默认 lab。
+  const reportKind = report.reportKind === 'imaging' || report.reportKind === 'other' ? report.reportKind : 'lab';
+  report.reportKind = reportKind;
+  return { report, imaging, items: reportKind === 'lab' ? items : [], extraFields, notes, unresolvedText, rejected };
 }
 
 /**

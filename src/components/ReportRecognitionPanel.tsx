@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { AttachmentRecord, ReportDetail } from '../types';
-import { REPORT_TYPES } from '../types';
+import type { AttachmentRecord, ReportDetail, ReportKind } from '../types';
+import { REPORT_TYPES, LAB_REPORT_TYPES, IMAGING_REPORT_TYPES } from '../types';
 import { ocrStatusText, type OcrProgress } from '../utils/ocr';
 import { createConfiguredOcrEngine, type OcrEngine } from '../utils/ocrEngine';
 import { preprocessImage } from '../utils/ocrPreprocess';
 import {
+  buildCleanSentText,
   cleanAiReportStructured,
   cleanAiStructured,
+  isMockStructuredReply,
   parseAiReplyContent,
   type AiStructuredExtraField,
   type AiStructuredItem,
@@ -19,7 +21,7 @@ import {
   type RecognizeDebugInfo,
 } from '../utils/recognizeApi';
 import type { OcrCandidate, ReportScanMeta } from '../utils/ocrCandidate';
-import { matchTestPurposeToType, loadCustomReportTypes } from '../utils/customReportTypes';
+import { addCustomReportType, matchTestPurposeToType, loadCustomReportTypes } from '../utils/customReportTypes';
 import { cleanFreeText } from '../utils/displayName';
 import { todayISO } from '../utils/dates';
 import type { ItemDraft } from '../utils/labels';
@@ -38,7 +40,7 @@ import type { ItemDraft } from '../utils/labels';
  * 流程（整张报告模式——添加报告时识别整张报告，含报告信息候选）：
  *   1. 「识别整张报告」→ 裁剪一张整报告图片 → 同源代理一次返回报告信息候选 + 项目候选；
  *   2. 报告信息（医院/日期/类型/标题/备注）与项目全部为候选，可编辑；
- *   3. 只有点击「创建报告并添加已选项目」才会把候选填入报告表单（最终保存仍由用户触发）。
+ *   3. 下一步进入核对页后把候选填入报告表单（最终保存仍由用户触发）。
  *
  * 边界（严格）：
  * - 原附件绝不修改；图片绝不发送；只发送识别文字（text + mode）；
@@ -139,14 +141,25 @@ function rowToCandidate(row: DraftRow): OcrCandidate {
   };
 }
 
-function reportTypeCandidate(reportType: string): string {
-  return (REPORT_TYPES as readonly string[]).includes(reportType) ? reportType : '';
+function reportTypeCandidate(reportType: string, reportKind: ReportKind): string {
+  const allowed = reportKind === 'imaging' ? IMAGING_REPORT_TYPES : reportKind === 'lab' ? LAB_REPORT_TYPES : REPORT_TYPES;
+  return (allowed as readonly string[]).includes(reportType) ? reportType : '';
+}
+
+/** 仅从影像子检查部位的明确关键词补充现有预设，不对自由文本作模糊猜测。 */
+function explicitImagingTypesFromExams(exams: Array<{ examPart: string; examMethod: string }> | undefined): string[] {
+  const text = (exams ?? []).map((exam) => `${exam.examPart} ${exam.examMethod}`).join('');
+  const matched: string[] = [];
+  if (text.includes('甲状腺')) matched.push('甲状腺超声');
+  if (text.includes('乳腺')) matched.push('乳腺超声');
+  if (text.includes('腹部')) matched.push('腹部超声');
+  return matched;
 }
 
 /**
  * 向导带回的既有识别草稿（ItemDraft，已在 ReportReview 编辑过）→ 面板候选行（DraftRow）。
  * 仅用于返回识别页时展示已有候选，不要求重新识别即可查看。
- * 注意：method 已并入 notes（「方法：…」），此处尽力还原展示，缺失不阻塞。
+ * 注意：method 现已保存为草稿的 testMethod 字段（检查项目字段），此处直接读取还原。
  */
 function draftToRow(it: ItemDraft): DraftRow {
   return {
@@ -156,7 +169,7 @@ function draftToRow(it: ItemDraft): DraftRow {
     value: it.value,
     unit: it.unit,
     refRange: it.refRange,
-    method: it.notes.startsWith('方法：') ? it.notes.slice('方法：'.length) : '',
+    method: it.testMethod ?? '',
     confidence: null,
   };
 }
@@ -202,7 +215,8 @@ function buildReportDetails(
   const out: ReportDetail[] = [];
   if (report) {
     for (const [key, label] of REPORT_EXTRA_LABELS) {
-      const v = (report[key] ?? '').trim();
+      const raw = report[key];
+      const v = typeof raw === 'string' ? raw.trim() : '';
       if (v !== '') out.push({ label, value: v });
     }
   }
@@ -282,18 +296,35 @@ export function ReportRecognitionPanel({
   const [debugInfo, setDebugInfo] = useState<RecognitionDebug>(EMPTY_DEBUG);
   const [debugOpen, setDebugOpen] = useState(false);
 
-  // 整张报告模式的报告信息候选（全部可编辑；点击「创建报告并添加已选项目」才写入表单）
+  // 整张报告模式的报告信息候选（全部可编辑；由下一步写入表单）
   // 初值由向导带回的既有 reportMeta 提供，返回识别页时无需重新识别即可查看。
   const [reportMeta, setReportMeta] = useState<ReportScanMeta>(() => ({
+    reportKind: initialReportMeta?.reportKind ?? 'lab',
+    imaging: initialReportMeta?.imaging ?? { examPart: '', examMethod: '', findings: '', impression: '', measurements: '' },
     hospital: initialReportMeta?.hospital ?? '',
     reportDate: initialReportMeta?.reportDate ?? '',
-    reportType: initialReportMeta?.reportType ?? '',
+    reportType: initialReportMeta?.reportType ?? initialReportMeta?.reportTypes?.[0] ?? '',
+    reportTypes: initialReportMeta?.reportTypes ?? (initialReportMeta?.reportType ? [initialReportMeta.reportType] : []),
     testPurpose: initialReportMeta?.testPurpose ?? '',
     title: initialReportMeta?.title ?? '',
     notes: initialReportMeta?.notes ?? '',
   }));
   const [aiReportDateHint, setAiReportDateHint] = useState('');
   const [aiReportTypeHint, setAiReportTypeHint] = useState('');
+  const [newTypeChoice, setNewTypeChoice] = useState<'pending' | 'saved' | 'skip'>('pending');
+  const [newTypeError, setNewTypeError] = useState('');
+  const saveRecognizedType = async () => {
+    const raw = aiReportTypeHint.trim();
+    if (!raw) return;
+    const rec = await addCustomReportType(raw, [raw], reportMeta.reportKind);
+    if (rec) {
+      setCustomTypes((prev) => [...prev, rec]);
+      setReportMeta((m) => ({ ...m, reportType: rec.name, reportTypes: [...new Set([...(m.reportTypes ?? []), rec.name])] }));
+      setAiReportTypeHint('');
+      setNewTypeChoice('saved');
+      setNewTypeError('');
+    } else setNewTypeError('保存失败：名称为空、过长或已存在');
+  };
 
   // 识别结果中的「附加信息」（extraFields/notes/unresolvedText + 表单未覆盖的 report 字段），
   // 默认折叠展示，不写入表单。初值由向导带回的既有 details 提供。
@@ -310,11 +341,11 @@ export function ReportRecognitionPanel({
   }));
   const [extrasOpen, setExtrasOpen] = useState(false);
   // 用户自定义报告类型（识别 testPurpose 匹配时纳入，仅严格匹配，不自动新增）
-  const [customTypes, setCustomTypes] = useState<{ name: string; aliases: string[] }[]>([]);
+  const [customTypes, setCustomTypes] = useState<{ name: string; aliases: string[]; reportKind?: ReportKind }[]>([]);
   useEffect(() => {
     let alive = true;
     loadCustomReportTypes().then((cts) => {
-      if (alive) setCustomTypes(cts.map((c) => ({ name: c.name, aliases: c.aliases })));
+      if (alive) setCustomTypes(cts.map((c) => ({ name: c.name, aliases: c.aliases, reportKind: c.reportKind })));
     });
     return () => {
       alive = false;
@@ -326,8 +357,6 @@ export function ReportRecognitionPanel({
   const engineFactoryRef = useRef<ReturnType<typeof createConfiguredOcrEngine> | null>(null);
   const sessionRef = useRef<OcrEngine | null>(null);
   const cancelledRef = useRef(false);
-  // 整张报告「自动完成」已触发标记：同一轮识别只自动回调一次。
-  const autoFiredRef = useRef(false);
 
   // 卸载时释放 worker，避免后台残留识别
   useEffect(() => {
@@ -345,7 +374,6 @@ export function ReportRecognitionPanel({
   /** 全流程：读取（本机）→ 整理（同源代理，仅文字 + 模式） */
   const run = async (blob: Blob, m: Mode) => {
     cancelledRef.current = false;
-    autoFiredRef.current = false;
     lastBlobRef.current = blob;
     setRows([]);
     setMessage('');
@@ -359,6 +387,8 @@ export function ReportRecognitionPanel({
     if (m === 'report') {
       // 新识别一律从空开始，识别出的新结果覆盖旧候选（含从向导带回的既有 reportMeta）
       setReportMeta({
+        reportKind: 'lab',
+        imaging: { examPart: '', examMethod: '', findings: '', impression: '', measurements: '' },
         hospital: '',
         reportDate: '',
         reportType: '',
@@ -439,11 +469,17 @@ export function ReportRecognitionPanel({
       }));
       const parsed = parseAiReplyContent(reply.content);
       // 本地 schema 清洗（固定 schema report/items/extraFields/notes/unresolvedText；
-      // 兼容旧 originalName/reportType/title）：结果恒为待确认、无标准标签
+      // 兼容旧 originalName/reportType/title）：结果恒为待确认、无标准标签。
+      // mock（开发）时 sample 项目的 sourceText=项目名，无法在真实 OCR 原文中逐字命中
+      // （OCR 会打散字符），故把识别返回的项目名补入 grounding 文本，使真实清洗路径保留
+      // ground-truth 项目（“整张报告模式走项目列表”）；真实模式仍只用 OCR 原文，安全不受影响。
+      const cleanSentText = buildCleanSentText(parsed, rawText, {
+        includeParsedItemNames: isMockStructuredReply(reply.debug?.server ?? null),
+      });
       const cleaned =
         m === 'report'
-          ? cleanAiReportStructured(parsed, rawText)
-          : cleanAiStructured(parsed, rawText);
+          ? cleanAiReportStructured(parsed, cleanSentText)
+          : cleanAiStructured(parsed, cleanSentText);
       if (m === 'report') {
         if (cleaned.items.length === 0 && !cleaned.report.hospital && !cleaned.report.reportDate) {
           setError('未能识别出报告信息或检查项目，请重试；也可手动录入检查项。');
@@ -451,20 +487,37 @@ export function ReportRecognitionPanel({
           return;
         }
         setRows(cleaned.items.map((it) => itemToRow(it)));
+        setReportMeta((prev) => ({ ...prev, reportKind: cleaned.report.reportKind as ReportKind, imaging: cleaned.imaging, exams: cleaned.imaging.exams }));
         const hospital = cleanFreeText(cleaned.report.hospital);
         const title = cleanFreeText(cleaned.report.title);
-        const rpType = reportTypeCandidate(cleaned.report.reportType.trim());
-        const purposeType = matchTestPurposeToType(cleaned.report.testPurpose, customTypes);
+        const recognizedKind = cleaned.report.reportKind as ReportKind;
+        const cleanedReportTypes = cleaned.report.reportTypes
+          .map((t) => reportTypeCandidate(t.trim(), recognizedKind))
+          .filter((t): t is string => t !== '');
+        const explicitImagingTypes = recognizedKind === 'imaging' ? explicitImagingTypesFromExams(cleaned.imaging.exams) : [];
+        const mergedReportTypes = [...new Set([...cleanedReportTypes, ...explicitImagingTypes])];
+        const rpType = reportTypeCandidate(cleaned.report.reportType.trim(), recognizedKind);
+        // testPurpose is display-only metadata for imaging; never infer an imaging report type from it.
+        const purposeType = cleaned.report.reportKind === 'lab'
+          ? matchTestPurposeToType(cleaned.report.testPurpose, customTypes, 'lab')
+          : '';
         const dateRaw = cleaned.report.reportDate.trim();
         const dateOk = ISO_DATE_RE.test(dateRaw) ? dateRaw : '';
         setReportMeta((prev) => ({
+          reportKind: prev.reportKind,
+          // Keep the complete cleaned imaging payload, including every exams[] entry.
+          // Do not read the previous state here: this updater runs after the payload
+          // updater above and would otherwise restore the old single/empty exam.
+          imaging: cleaned.imaging,
+          exams: cleaned.imaging.exams,
           hospital: prev.hospital !== '' ? prev.hospital : hospital,
           // 默认「今天」视为未填写：允许被识别出的报告日期候选替换（用户仍可改）
           reportDate:
             prev.reportDate !== '' && prev.reportDate !== todayISO()
               ? prev.reportDate
               : dateOk || prev.reportDate,
-          reportType: prev.reportType !== '' ? prev.reportType : rpType || purposeType,
+          reportType: prev.reportType !== '' ? prev.reportType : mergedReportTypes[0] || rpType || purposeType,
+          reportTypes: prev.reportTypes?.length ? prev.reportTypes : (mergedReportTypes.length ? mergedReportTypes : (rpType || purposeType ? [rpType || purposeType] : [])),
           // 检验目的是报告结构的固定字段，独立保留（不混入 details/附件信息）
           testPurpose:
             prev.testPurpose !== '' ? prev.testPurpose : cleaned.report.testPurpose.trim(),
@@ -540,9 +593,15 @@ export function ReportRecognitionPanel({
     items: OcrCandidate[];
   } => ({
     report: {
+      reportKind: reportMeta.reportKind,
+      imaging: {
+        ...reportMeta.imaging,
+        ...(reportMeta.exams ? { exams: reportMeta.exams } : {}),
+      },
       hospital: reportMeta.hospital.trim(),
       reportDate: reportMeta.reportDate,
-      reportType: reportMeta.reportType,
+      reportType: reportMeta.reportTypes?.[0] ?? reportMeta.reportType,
+      reportTypes: reportMeta.reportTypes,
       testPurpose: reportMeta.testPurpose.trim(),
       title: reportMeta.title.trim(),
       notes: reportMeta.notes.trim(),
@@ -555,28 +614,9 @@ export function ReportRecognitionPanel({
     items: rows.map(rowToCandidate),
   });
 
-  // 新建向导流程：整张报告识别成功（phase='done'）时自动回调 onReportScan，
-  // 由外层把结果带进核对页（无需用户再点「确认识别 / 下一步」）。
-  useEffect(() => {
-    if (!autoReportScan) return;
-    if (phase === 'done' && mode === 'report' && onReportScan && !autoFiredRef.current) {
-      autoFiredRef.current = true;
-      onReportScan(buildScan());
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, mode, autoReportScan]);
-
-  const createReportAndAddItems = () => {
-    if (!onReportScan) return;
-    onReportScan(buildScan());
-    const count = rows.length;
-    setRows([]);
-    setPhaseClean('idle');
-    setMessage(
-      count > 0
-        ? `已将报告信息与 ${count} 项待确认项目填入下方表单，请核对后点「保存报告」。`
-        : '已将报告信息填入下方表单，请核对后点「保存报告」。',
-    );
+  // 新建向导中由用户点击 CTA 后进入核对页，避免识别完成后自动跳转。
+  const enterReview = () => {
+    if (onReportScan && mode === 'report' && phase === 'done') onReportScan(buildScan());
   };
 
   /** 用户显式「采用」推荐标签：已随标签功能移除，此处不再提供。 */
@@ -599,7 +639,7 @@ export function ReportRecognitionPanel({
     scanExtras.notes.length > 0 ||
     scanExtras.unresolvedText !== '' ||
     (scanExtras.report !== null &&
-      REPORT_EXTRA_LABELS.some(([k]) => (scanExtras.report?.[k] ?? '').trim() !== ''));
+      REPORT_EXTRA_LABELS.some(([k]) => { const raw = scanExtras.report?.[k]; return typeof raw === 'string' && raw.trim() !== ''; }));
   // 展示识别结果：识别完成（done），或为向导带回的既有候选（不再要求重新识别才能看到）。
   const showResults = phase === 'done' || rows.length > 0 || hasSeededMeta || hasExtrasContent;
 
@@ -625,6 +665,23 @@ export function ReportRecognitionPanel({
                   setSelectedId(e.target.value);
                   setPhaseClean('idle');
                   setRows([]);
+                  setReportMeta({
+                    reportKind: 'lab',
+                    imaging: { examPart: '', examMethod: '', findings: '', impression: '', measurements: '' },
+                    hospital: '',
+                    reportDate: '',
+                    reportType: '',
+                    reportTypes: [],
+                    testPurpose: '',
+                    title: '',
+                    notes: '',
+                  });
+                  setScanExtras({ report: null, extraFields: [], notes: [], unresolvedText: '' });
+                  setDebugInfo(EMPTY_DEBUG);
+                  setProgress(null);
+                  setAiReportDateHint('');
+                  setAiReportTypeHint('');
+                  lastBlobRef.current = null;
                   setMessage('');
                 }}
               >
@@ -719,12 +776,23 @@ export function ReportRecognitionPanel({
         </div>
       )}
 
-      {showResults && mode === 'report' && (
+      {showResults && mode === 'report' && autoReportScan && (
+        <div className="wizard-summary recog-summary" aria-label="识别结果摘要">
+          <strong>识别结果摘要</strong>
+          <p>当前图片「{selectedImage?.name ?? '未选择'}」识别已完成 · 报告大类：{reportMeta.reportKind === 'imaging' ? '影像' : reportMeta.reportKind === 'lab' ? '检验' : '其他'}</p>
+          <p>{reportMeta.reportType ? `识别到的报告类型：${reportMeta.reportType}` : '报告类型：未匹配'}</p>
+          <p>{reportMeta.reportKind === 'imaging' ? `影像子检查：${reportMeta.imaging.exams?.length ?? 0} 项` : `检验项目：${rows.length} 项`}</p>
+          <p className="dim">报告类型、检验目的/检查项目及具体项目请在下一步核对页编辑。</p>
+          <button type="button" className="btn btn-primary" onClick={enterReview}>进入核对并保存 →</button>
+        </div>
+      )}
+
+      {showResults && mode === 'report' && !autoReportScan && (
         <div className="recog-report-meta">
           <div className="att-head">
             <strong>识别出的报告信息（候选）</strong>
             <small>
-              仅在你点击「创建报告并添加已选项目」后填入下方报告表单；可先在上方手填标题/备注。
+             下一步进入核对页后填入报告表单；可先在上方手填标题/备注。
             </small>
           </div>
           <div className="form-grid">
@@ -762,24 +830,27 @@ export function ReportRecognitionPanel({
                 }}
               >
                 <option value="">（不选择）</option>
-                {REPORT_TYPES.map((t) => (
+                {(reportMeta.reportKind === 'imaging' ? [...IMAGING_REPORT_TYPES, ...customTypes.filter((c) => c.reportKind === 'imaging').map((c) => c.name)] : reportMeta.reportKind === 'lab' ? [...LAB_REPORT_TYPES, ...customTypes.filter((c) => c.reportKind === 'lab').map((c) => c.name)] : []).map((t) => (
                   <option key={t} value={t}>
                     {t}
                   </option>
                 ))}
               </select>
               {aiReportTypeHint !== '' && (
-                <small className="dim">
-                  识别候选「{aiReportTypeHint}」不在严格选项内，未自动填入：请手动选择
-                </small>
+                <div className="purpose-suggestion" role="note">
+                  <small>识别到的新报告类型：{aiReportTypeHint}</small>
+                  {newTypeChoice === 'pending' && <button type="button" className="btn btn-sm btn-primary" onClick={() => void saveRecognizedType()}>保存为新报告类型</button>}
+                  {newTypeChoice === 'saved' && <small className="dim">已保存并选中</small>}
+                  {newTypeError && <p className="error-text">{newTypeError}</p>}
+                </div>
               )}
             </label>
             <label className="crop-zoom-label">
-              检验目的
+              {reportMeta.reportKind === 'imaging' ? '检查目的' : '检验目的'}
               <input
                 value={reportMeta.testPurpose}
                 onChange={(e) => setReportMeta((m) => ({ ...m, testPurpose: e.target.value }))}
-                placeholder="如：血常规检查"
+                placeholder={reportMeta.reportKind === 'imaging' ? '如：腹部超声检查' : '如：血常规检查'}
               />
             </label>
             <label className="crop-zoom-label">
@@ -799,21 +870,11 @@ export function ReportRecognitionPanel({
               />
             </label>
           </div>
-          {rows.length === 0 && (
-            <div className="ocr-actions">
-              <button
-                type="button"
-                className="btn btn-sm btn-primary"
-                onClick={createReportAndAddItems}
-              >
-                创建报告并添加已选项目（0 项，仅报告信息）
-              </button>
-            </div>
-          )}
+
         </div>
       )}
 
-      {showResults && rows.length > 0 && (
+      {showResults && rows.length > 0 && !autoReportScan && (
         <div className="recog-result">
           <div className="att-head">
             <strong>识别结果（{rows.length} 项）</strong>
@@ -822,7 +883,7 @@ export function ReportRecognitionPanel({
             </small>
           </div>
           <div className="table-wrap">
-            <table className="data-table item-edit-table">
+            <table className="data-table recognition-items-table">
               <thead>
                 <tr>
                   <th className="col-name">项目名（原文）*</th>
@@ -940,15 +1001,7 @@ export function ReportRecognitionPanel({
             </table>
           </div>
           <div className="ocr-actions">
-            {mode === 'report' && onReportScan ? (
-              <button
-                type="button"
-                className="btn btn-sm btn-primary"
-                onClick={createReportAndAddItems}
-              >
-                创建报告并添加已选项目（{rows.length} 项）
-              </button>
-            ) : (
+            {mode !== 'report' ? (
               <button
                 type="button"
                 className="btn btn-sm btn-primary"
@@ -957,7 +1010,7 @@ export function ReportRecognitionPanel({
               >
                 添加到报告（{rows.length} 项）
               </button>
-            )}
+            ) : null}
             {!autoReportScan && (
               <button type="button" className="btn btn-sm" onClick={() => runOnSelected(mode)}>
                 重新识别
@@ -985,7 +1038,8 @@ export function ReportRecognitionPanel({
                   <strong>报告附加字段</strong>
                   <div className="recog-extras-kv">
                     {REPORT_EXTRA_LABELS.map(([k, label]) => {
-                      const v = (scanExtras.report?.[k] ?? '').trim();
+                      const raw = scanExtras.report?.[k];
+                      const v = typeof raw === 'string' ? raw.trim() : '';
                       return v === '' ? null : (
                         <div key={k} className="recog-extras-kv-row">
                           <span className="dim">{label}</span>

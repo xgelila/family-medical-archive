@@ -22,6 +22,7 @@ const read = (p: string) => readFileSync(join(root, 'src', p), 'utf-8');
 
 const app = read('App.tsx');
 const review = read('components/ReportReview.tsx');
+const dataManager = read('components/DataManager.tsx');
 
 describe('编辑入口：编辑已有报告进入统一编辑/核对界面（ReportReview），不挂旧界面', () => {
   it('App.tsx 编辑分支渲染 ReportReview 而非旧 ReportForm', () => {
@@ -38,12 +39,14 @@ describe('编辑入口：编辑已有报告进入统一编辑/核对界面（Rep
     expect(app).toContain('editingReport={editingReport}');
   });
 
-  it('ReportReview 支持编辑模式：接收 editingReport 并从其初始化/加载项目附件', () => {
+  it('ReportReview 支持编辑模式：接收 editingReport 并从其加载项目/附件', () => {
     expect(review).toContain('editingReport?: Report | null');
     expect(review).toContain('editingReport?.memberId');
     expect(review).toContain('editingReport?.hospital');
-    expect(review).toContain("db.items.where('reportId').equals(editingReport.id)");
-    expect(review).toContain("db.attachments.where('reportId').equals(editingReport.id)");
+    // 编辑模式通过可单测的加载器从数据库读取既有项目/附件（含加载竞态保护）
+    expect(review).toContain("import {");
+    expect(review).toContain('loadEditReportData');
+    expect(review).toContain('canSaveEditReport');
   });
 
   it('ReportReview 编辑模式保存保持报告 id 与 createdAt，并支持附件移除/添加', () => {
@@ -60,10 +63,12 @@ describe('编辑入口：编辑已有报告进入统一编辑/核对界面（Rep
 });
 
 describe('语义分离：检验目的（testPurpose）≠ 报告类型（reportType）', () => {
-  it('血红蛋白/糖化血红蛋白 作为检验目的，不匹配任何受控报告类型（映射返回空串）', () => {
-    // 检验目的原文（如单查血红蛋白/糖化血红蛋白）绝不强行映射成报告类型
+  it('血红蛋白 作为检验目的，不匹配任何受控报告类型（映射返回空串）；糖化血红蛋白/血糖 现为独立报告类型', () => {
+    // 血红蛋白（非糖化）仍不是受控报告类型，绝不强行映射
     expect(testPurposeToReportType('血红蛋白')).toBe('');
-    expect(testPurposeToReportType('糖化血红蛋白')).toBe('');
+    // 拆分后：糖化血红蛋白 / 血糖 均为受控报告类型，精确映射
+    expect(testPurposeToReportType('糖化血红蛋白')).toBe('糖化血红蛋白');
+    expect(testPurposeToReportType('血糖')).toBe('血糖');
     expect(testPurposeToReportType('健康体检')).toBe('');
   });
 
@@ -81,23 +86,26 @@ describe('语义分离：检验目的（testPurpose）≠ 报告类型（reportT
   });
 
   it('ReportReview 报告类型 select 仅受控选项 + 保留原值；检验目的不塞进报告类型', () => {
-    expect(review).toContain('allTypes.map((t) =>');
-    expect(review).toContain('（不选择）');
+    expect(review).toContain('visibleTypes.map((t) =>');
+    expect(review).toContain('type={reportKind === \'imaging\' ? \'checkbox\' : \'radio\'}');
+    expect(review).toContain('reportTypes');
   });
 });
 
-describe('未匹配检验目的三选一（ReportReview 源级校验）', () => {
-  it('包含「发现新的检验类别」提示与三种操作（保存新类型/选择已有/暂不设置）', () => {
-    expect(review).toContain('发现新的检验类别');
-    expect(review).toContain('作为新的报告类型保存');
-    expect(review).toContain('手动选择已有类型');
-    expect(review).toContain('暂不设置');
+describe('未匹配检验目的的一次性保存建议（ReportReview 源级校验）', () => {
+  it('包含轻量一次性建议：将检验目的保存为新的报告类型，并提供取消', () => {
+    expect(review).toContain('将「');
+    expect(review).toContain('保存为新的报告类型');
+    expect(review).toContain('取消');
   });
 
-  it('不强行把血红蛋白分类为血常规：文案声明 AI 仅作建议、不会强行归类', () => {
-    expect(review).toMatch(/AI\s*仅作建议/);
-    expect(review).toContain('不会把条目强行归类');
-    expect(review).toContain('血红蛋白');
+  it('不展示常态化的自定义报告类型管理区（列表/删除/新增输入/空态说明）', () => {
+    expect(review).not.toContain('我的报告类型（自定义）');
+    expect(review).not.toContain('内置类型不可删除');
+    expect(review).not.toContain('新增自定义报告类型名称');
+    expect(review).not.toContain('custom-types-manage');
+    expect(review).not.toContain('handleAddCustomType');
+    expect(review).not.toContain('handleDeleteCustomType');
   });
 
   it('确认新增后写入 DB 并立即选中：调用 addCustomReportType 且 setReportType(rec.name)', () => {
@@ -107,6 +115,23 @@ describe('未匹配检验目的三选一（ReportReview 源级校验）', () => 
 
   it('报告类型下拉合并内置 + 我的报告类型（allTypes = mergeReportTypes(customTypes)）', () => {
     expect(review).toContain('mergeReportTypes(customTypes)');
-    expect(review).toContain('allTypes.map((t) =>');
+    expect(review).toContain('visibleTypes.map((t) =>');
+  });
+});
+
+describe('自定义报告类型管理入口位于 DataManager（数据管理页）', () => {
+  it('DataManager 包含完整管理入口（查看内置/自定义、删除、手动新增）', () => {
+    expect(dataManager).toContain('自定义报告类型管理');
+    expect(dataManager).toContain('内置类型（不可删除）');
+    expect(dataManager).toContain('我的报告类型（自定义）');
+    expect(dataManager).toContain('新增自定义报告类型名称');
+    expect(dataManager).toContain('handleDeleteCustomType');
+    expect(dataManager).toContain('deleteCustomReportType(');
+    expect(dataManager).toContain('addCustomReportType(');
+  });
+
+  it('App 数据管理分支渲染 DataManager，且不新增无关顶级导航', () => {
+    expect(app).toContain("import { DataManager } from './components/DataManager'");
+    expect(app).toContain("<DataManager bump={bump} />");
   });
 });
