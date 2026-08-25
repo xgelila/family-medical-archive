@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { Camera, ScanLine } from 'lucide-react';
 import type { AttachmentRecord, ReportDetail, ReportKind } from '../types';
 import { REPORT_TYPES, LAB_REPORT_TYPES, IMAGING_REPORT_TYPES } from '../types';
@@ -248,18 +255,12 @@ function buildReportDetails(
   return out;
 }
 
-export function ReportRecognitionPanel({
-  attachments,
-  onImport,
-  onReportScan,
-  memberSelected = false,
-  initialReportMeta,
-  initialItems,
-  initialDetails,
-  reportModeOnly = false,
-  onPhaseChange,
-  autoReportScan = false,
-}: {
+export interface ReportRecognitionPanelHandle {
+  /** 用户确认识别结果并进入核对页（仅识别完成/带回候选可触发，供外层统一底部操作栏调用）。 */
+  enterReview: () => void;
+}
+
+interface ReportRecognitionPanelProps {
   attachments: AttachmentRecord[];
   onImport: (candidates: OcrCandidate[]) => void;
   onReportScan?: (scan: {
@@ -280,7 +281,26 @@ export function ReportRecognitionPanel({
   onPhaseChange?: (phase: Phase) => void;
   /** 整张报告识别成功时自动回调 onReportScan（新建向导流程：成功即带结果自动进入核对页）。 */
   autoReportScan?: boolean;
-}) {
+}
+
+export const ReportRecognitionPanel = forwardRef<
+  ReportRecognitionPanelHandle,
+  ReportRecognitionPanelProps
+>(function ReportRecognitionPanel(
+  {
+    attachments,
+    onImport,
+    onReportScan,
+    memberSelected = false,
+    initialReportMeta,
+    initialItems,
+    initialDetails,
+    reportModeOnly = false,
+    onPhaseChange,
+    autoReportScan = false,
+  }: ReportRecognitionPanelProps,
+  ref,
+) {
   const images = useMemo(() => attachments.filter((a) => a.kind === 'image'), [attachments]);
   const hasPdfOnly = attachments.length > 0 && images.length === 0;
 
@@ -675,6 +695,15 @@ export function ReportRecognitionPanel({
       onReportScan(buildScan());
   };
 
+  // 由父向导统一渲染底部操作栏时，通过 ref 暴露“进入核对并保存”动作（保持同屏同一操作栏）。
+  useImperativeHandle(
+    ref,
+    () => ({
+      enterReview,
+    }),
+    [enterReview],
+  );
+
   /** 用户显式「采用」推荐标签：已随标签功能移除，此处不再提供。 */
 
   const percent = phase === 'reading' && progress ? Math.round(progress.progress * 100) : null;
@@ -863,14 +892,6 @@ export function ReportRecognitionPanel({
               : `检验项目：${rows.length} 项`}
           </p>
           <p className="dim">报告类型、检验目的/检查项目及具体项目请在下一步核对页编辑。</p>
-          <div className="wizard-nav recog-summary-actions" aria-label="步骤2底部操作区">
-            <div className="wizard-nav-left" aria-hidden="true" />
-            <div className="wizard-nav-right">
-              <button type="button" className="btn btn-primary" onClick={enterReview}>
-                进入核对并保存 →
-              </button>
-            </div>
-          </div>
         </div>
       )}
 
@@ -1367,4 +1388,4 @@ export function ReportRecognitionPanel({
       )}
     </div>
   );
-}
+});

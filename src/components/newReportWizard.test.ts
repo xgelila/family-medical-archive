@@ -164,8 +164,8 @@ describe('返回上一步：附件修改与识别草稿恢复边界', () => {
 describe('新建报告向导：识别 CTA 唯一醒目 + 成功后停留识别页', () => {
   it('识别子界面以「识别整张报告」为唯一主 CTA（reportModeOnly），隐藏「仅识别检查项目」', () => {
     expect(wizard).toContain('reportModeOnly');
-    // 识别结果完成后停留识别页，由用户明确点击摘要 CTA 进入核对
-    expect(panel).toContain('进入核对并保存');
+    // 识别完成后停留识别页；「进入核对并保存」由向导统一底部操作栏提供（见下方专用用例）
+    expect(panel).toContain('识别整张报告');
   });
 
   it('ReportRecognitionPanel 提供用户确认 CTA（autoReportScan），成功时才 onReportScan', () => {
@@ -181,7 +181,7 @@ describe('新建报告向导：识别 CTA 唯一醒目 + 成功后停留识别�
     expect(wizard).toContain("setRecogPhase('done')");
     // CTA 调用 onReportScan 后必须推进父向导，否则按钮点击无可见效果。
     expect(wizard).toContain('setStep(3);\n  };');
-    expect(panel).toContain('进入核对并保存');
+    expect(wizard).toContain('进入核对并保存');
     expect(wizard).not.toContain('创建报告并添加已选项目');
   });
 
@@ -278,6 +278,43 @@ describe('新建报告向导：返回识别页保留既有识别结果（受控�
     expect(wizard).toContain('clearRecognition();');
     // addFiles 不再立即清空：取消不变更则保留旧附件与识别结果
     expect(wizard).not.toContain('替换附件来源：清空上一份报告的识别候选');
+  });
+});
+
+describe('步骤2识别完成：统一底部操作栏（返回左、进入核对并保存右；无返回时主CTA右对齐）', () => {
+  it('返回上一步与进入核对并保存位于同一底部操作栏，返回(左)在 CTA(右)之前', () => {
+    // 向导统一底部 wizard-nav 同时承载「返回上一步」(left) 与「进入核对并保存」(right)
+    expect(wizard).toContain('aria-hidden="true" /> 返回上一步');
+    const back = wizard.indexOf('返回上一步');
+    const cta = wizard.indexOf('进入核对并保存');
+    expect(back).toBeGreaterThan(-1);
+    expect(cta).toBeGreaterThan(-1);
+    // 同一段导航：返回（左侧）必须先于核对 CTA（右侧）出现
+    expect(back).toBeLessThan(cta);
+    // 识别面板不再自带底部操作区，避免出现第二处操作栏
+    expect(panel).not.toContain('recog-summary-actions');
+    expect(styles).not.toContain('recog-summary-actions');
+  });
+
+  it('向导通过 ref 调用面板 enterReview；从核对页返回后 recogPhase=done 仍可点 CTA', () => {
+    // 面板暴露 enterReview 句柄供向导统一操作栏调用
+    expect(panel).toContain('ReportRecognitionPanelHandle');
+    expect(panel).toContain('useImperativeHandle');
+    // 向导持有面板 ref，CTA 点击委派给面板的 enterReview
+    expect(wizard).toContain('reviewPanelRef');
+    expect(wizard).toContain('ref={reviewPanelRef}');
+    expect(wizard).toContain('reviewPanelRef.current?.enterReview()');
+    // 仅识别完成即可点：recogPhase==='done'（从核对页返回后 onReportScan 置 done，CTA 仍可点）
+    expect(wizard).toContain("recogPhase === 'done'");
+    expect(wizard).toContain("setRecogPhase('done')");
+  });
+
+  it('步骤1无返回按钮：主 CTA「下一步」仍右对齐（导航右区），左侧为取消', () => {
+    expect(wizard).toContain('<div className="wizard-nav-left">');
+    expect(wizard).toContain('<div className="wizard-nav-right">');
+    // 步骤1左侧是「取消」，「下一步」主 CTA 位于右区
+    expect(wizard).toContain('取消');
+    expect(wizard).toContain('下一步');
   });
 });
 

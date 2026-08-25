@@ -15,7 +15,7 @@ import { now, uid } from '../db';
 import { ageByBirthDate } from '../utils/dates';
 import type { ItemDraft } from '../utils/labels';
 import { ocrCandidateToDraft, type ReportScanMeta } from '../utils/ocrCandidate';
-import { ReportRecognitionPanel } from './ReportRecognitionPanel';
+import { ReportRecognitionPanel, type ReportRecognitionPanelHandle } from './ReportRecognitionPanel';
 import { ScanSourceSheet } from './ScanSourceSheet';
 import { ReportReview } from './ReportReview';
 
@@ -101,6 +101,9 @@ export function NewReportWizard({
 
   const captureRef = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
+
+  // 步骤2识别面板：统一底部操作栏需要在其识别完成后触发「进入核对并保存」（面板持有草稿与构建逻辑）。
+  const reviewPanelRef = useRef<ReportRecognitionPanelHandle>(null);
 
   const images = useMemo(() => attachments.filter((a) => a.kind === 'image'), [attachments]);
   const recognitionBusy = recogPhase === 'reading' || recogPhase === 'structuring';
@@ -428,6 +431,7 @@ export function NewReportWizard({
             </div>
           ) : (
             <ReportRecognitionPanel
+              ref={reviewPanelRef}
               attachments={attachments}
               memberSelected={memberId !== ''}
               reportModeOnly
@@ -492,6 +496,16 @@ export function NewReportWizard({
             )}
             {step === 2 && addPhase === 'recognition' && !manualMode && recognitionBusy && (
               <span className="wizard-busy dim">识别进行中…</span>
+            )}
+            {step === 2 && addPhase === 'recognition' && !manualMode && recogPhase === 'done' && (
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => reviewPanelRef.current?.enterReview()}
+              >
+                进入核对并保存{' '}
+                <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
+              </button>
             )}
           </div>
         </div>

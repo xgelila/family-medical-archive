@@ -460,11 +460,6 @@ body {
 }
 .form-actions-right { margin-left: auto; }
 
-/* Wizard step 2/3: identical two-column operation area. */
-.recog-summary-actions { margin-top: 12px; }
-.recog-summary-actions .wizard-nav-left { flex: 1; }
-.recog-summary-actions .wizard-nav-right { margin-left: auto; }
-
 
 .error-text {
   color: var(--danger);
