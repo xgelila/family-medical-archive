@@ -790,7 +790,12 @@ export function ReportRecognitionPanel({
           <p>{reportMeta.reportType ? `识别到的报告类型：${reportMeta.reportType}` : '报告类型：未匹配'}</p>
           <p>{reportMeta.reportKind === 'imaging' ? `影像子检查：${reportMeta.imaging.exams?.length ?? 0} 项` : `检验项目：${rows.length} 项`}</p>
           <p className="dim">报告类型、检验目的/检查项目及具体项目请在下一步核对页编辑。</p>
-          <button type="button" className="btn btn-primary" onClick={enterReview}>进入核对并保存 →</button>
+          <div className="wizard-nav recog-summary-actions" aria-label="步骤2底部操作区">
+            <div className="wizard-nav-left" aria-hidden="true" />
+            <div className="wizard-nav-right">
+              <button type="button" className="btn btn-primary" onClick={enterReview}>进入核对并保存 →</button>
+            </div>
+          </div>
         </div>
       )}
 

@@ -876,57 +876,61 @@ export function ReportReview({
             : '本次未添加附件。'}
       </div>
 
-      <div className="form-actions">
-        {pendingCount > 0 && reportKind === 'lab' && (
-          <span className="confirm-gate-note" role="alert">
-            还有 {pendingCount} 项待确认，请逐项确认后才能保存生成正式记录。
-          </span>
-        )}
-        <button
-          type="button"
-          className="btn btn-primary"
-          disabled={!canSave || busy}
-          onClick={() => void save()}
-        >
-          {busy ? '保存中…' : '保存报告'}
-        </button>
-        {onBack && (
+      <div className="form-actions" aria-label="步骤3底部操作区">
+        <div className="form-actions-left">
+          {onBack && (
+            <button
+              type="button"
+              className="btn btn-ghost"
+              aria-label="返回上一步"
+              onClick={() => onBack({
+                memberId,
+                reportMeta: {
+                  reportKind,
+                  imaging: reportKind === 'imaging'
+                    ? { ...imaging, ...(imagingExams.length ? { exams: imagingExams } : {}) }
+                    : { examPart: '', examMethod: '', findings: '', impression: '', measurements: '' },
+                  hospital,
+                  reportDate,
+                  reportType,
+                  reportTypes,
+                  testPurpose,
+                  title,
+                  notes,
+                },
+                items,
+                details,
+              })}
+              disabled={busy}
+            >
+              ← 返回上一步
+            </button>
+          )}
+        </div>
+        <div className="form-actions-right">
+          {pendingCount > 0 && reportKind === 'lab' && (
+            <span className="confirm-gate-note" role="alert">
+              还有 {pendingCount} 项待确认，请逐项确认后才能保存生成正式记录。
+            </span>
+          )}
+          {error && <span className="error-text">{error}</span>}
           <button
             type="button"
             className="btn btn-ghost"
-            aria-label="返回上一步"
-            onClick={() => onBack({
-              memberId,
-              reportMeta: {
-                reportKind,
-                imaging: reportKind === 'imaging'
-                  ? { ...imaging, ...(imagingExams.length ? { exams: imagingExams } : {}) }
-                  : { examPart: '', examMethod: '', findings: '', impression: '', measurements: '' },
-                hospital,
-                reportDate,
-                reportType,
-                reportTypes,
-                testPurpose,
-                title,
-                notes,
-              },
-              items,
-              details,
-            })}
+            onClick={() => onDone(false)}
             disabled={busy}
           >
-            ← 返回上一步
+            取消
           </button>
-        )}
-        <button
-          type="button"
-          className="btn btn-ghost"
-          onClick={() => onDone(false)}
-          disabled={busy}
-        >
-          取消
-        </button>
-        {error && <span className="error-text">{error}</span>}
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={!canSave || busy}
+            onClick={() => void save()}
+          >
+            {busy ? '保存中…' : '保存报告'}
+          </button>
+        </div>
       </div>
     </div>
   );

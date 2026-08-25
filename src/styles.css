@@ -450,15 +450,20 @@ body {
   flex-wrap: wrap;
 }
 
-/* Wizard step 3: back stays left and the primary save CTA stays right. */
-.form-actions > .btn-ghost:first-of-type { order: -1; }
-.form-actions > .btn-primary { order: 2; margin-left: auto; }
-.form-actions > .entry-cancel,
-.form-actions > .error-text { order: 3; }
+.form-actions-left,
+.form-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.form-actions-right { margin-left: auto; }
 
-/* Wizard step 2 summary CTA mirrors the same right-anchored primary action. */
-.recog-summary { position: relative; }
-.recog-summary > .btn-primary { display: block; margin: 12px 0 0 auto; }
+/* Wizard step 2/3: identical two-column operation area. */
+.recog-summary-actions { margin-top: 12px; }
+.recog-summary-actions .wizard-nav-left { flex: 1; }
+.recog-summary-actions .wizard-nav-right { margin-left: auto; }
+
 
 .error-text {
   color: var(--danger);
