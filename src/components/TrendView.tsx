@@ -148,6 +148,11 @@ export function TrendView({
         </Field>
       </div>
 
+      <div className="card trend-rule-note" role="note">
+        <Info size={16} strokeWidth={2} aria-hidden="true" />
+        <span>仅同一成员、同名同类别同单位的已确认数值会连线；其余记录仅展示原文。</span>
+      </div>
+
       {loading ? (
         <TrendEmptyCard
           icon={<TrendingUp size={40} strokeWidth={1.5} aria-hidden="true" />}

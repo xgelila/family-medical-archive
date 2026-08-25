@@ -802,6 +802,16 @@ body {
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
 }
 
+/* 趋势规则说明：独立卡片，左对齐、正常流，不靠右、不落到外层灰背景 */
+.trend-rule-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 /* 趋势页内容区空态：统一放入卡片内容容器，文字左对齐、正常流布局、移动端不溢出 */
 .trend-empty.card {
   padding: 16px;

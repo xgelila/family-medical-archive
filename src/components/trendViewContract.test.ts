@@ -24,11 +24,16 @@ describe('趋势页移除候选/连线解释辅助文本（保留标题、筛选
     '有 13 个检查项可用于趋势',
     '有 ${candidates.length} 个检查项可用于趋势',
     '该成员暂无数值型检查项目可用于趋势',
-    '仅同一成员、同名同类别同单位的已确认数值会连线',
     '同名同类别同单位的已确认记录可比较；连线使用原始数值',
     '趋势严格按「同一成员、同一检查项名称 + 检查类别 + 单位」连线',
   ])('TrendView 不再包含辅助文字片段: %s', (fragment) => {
     expect(trend).not.toContain(fragment);
+  });
+
+  it('恢复趋势规则说明：以独立卡片 .trend-rule-note 展示', () => {
+    expect(trend).toContain('仅同一成员、同名同类别同单位的已确认数值会连线；其余记录仅展示原文。');
+    expect(trend).toContain('<div className="card trend-rule-note" role="note">');
+    expect(styles).toContain('.trend-rule-note');
   });
 
   it('保留趋势页标题与筛选控件（成员、报告类型、检查项目）', () => {
