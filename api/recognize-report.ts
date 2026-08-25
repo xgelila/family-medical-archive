@@ -4,7 +4,7 @@ import {
   extractRecognizeContent,
   readRecognizeServiceConfig,
   recognizeErrorMessage,
-} from '../recognizeServer';
+} from './recognize-service';
 
 const MAX_BODY = 512 * 1024;
 
@@ -58,7 +58,7 @@ function error(
   console.error(`[recognize-report] ${id} ${code} status=${status}`);
   return res
     .status(status)
-    .json({ error: { message, status, code, ...diagnostic }, ...diagnostic });
+    .json({ error: { ...diagnostic, message, status, code }, ...diagnostic });
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {

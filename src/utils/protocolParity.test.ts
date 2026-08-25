@@ -18,14 +18,16 @@ describe('本机与 Vercel 结构化协议一致', () => {
     expect(api).not.toContain('import.meta.env');
   });
 
-  it('Vercel API 使用共享完整 system prompt，而不是另写精简协议', () => {
+  it('Vercel API 使用无浏览器/Vite 依赖的纯 Node 服务模块', () => {
     const api = readFileSync(resolve(process.cwd(), 'api/recognize-report.ts'), 'utf8');
-    expect(api).toContain("from '../recognizeServer'");
+    expect(api).toContain("from './recognize-service'");
     expect(api).toContain('buildRecognizePayload(config.model, body.text, body.mode)');
-    const shared = readFileSync(resolve(process.cwd(), 'recognizeServer.ts'), 'utf8');
-    expect(shared).toContain("from './src/shared/structurePrompt'");
-    expect(shared).toContain('systemPromptForMode(selectedMode)');
-    expect(api).not.toContain('严格 JSON。只输出 JSON');
+    expect(api).not.toContain("from '../recognizeServer'");
+    const service = readFileSync(resolve(process.cwd(), 'api/recognize-service.ts'), 'utf8');
+    expect(service).not.toContain("from '../src/");
+    expect(service).not.toContain("from './src/");
+    expect(service).toContain('DEEPSEEK_API_KEY');
+    expect(service).toContain('systemPrompt');
   });
 
   it('共享 prompt 覆盖 report、lab/imaging/other、reportTypes、testPurpose 和 imaging.exams 协议', () => {
