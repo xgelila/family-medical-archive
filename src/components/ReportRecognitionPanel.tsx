@@ -621,7 +621,9 @@ export function ReportRecognitionPanel({
 
   // 新建向导中由用户点击 CTA 后进入核对页，避免识别完成后自动跳转。
   const enterReview = () => {
-    if (onReportScan && mode === 'report' && phase === 'done') onReportScan(buildScan());
+    // Returning from review remounts this panel with a seeded draft, so phase is
+    // idle even though the completed recognition result is still actionable.
+    if (onReportScan && mode === 'report' && (phase === 'done' || showResults)) onReportScan(buildScan());
   };
 
   /** 用户显式「采用」推荐标签：已随标签功能移除，此处不再提供。 */

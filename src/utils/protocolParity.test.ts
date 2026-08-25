@@ -30,6 +30,18 @@ describe('本机与 Vercel 结构化协议一致', () => {
     expect(service).toContain('systemPrompt');
   });
 
+  it('唯一运行核心实际使用共享 prompt 产物，而非重复 prompt', () => {
+    const core = require('../../recognize-core.cjs') as {
+      STRUCTURE_SYSTEM_PROMPT: string;
+      REPORT_STRUCTURE_SYSTEM_PROMPT: string;
+      buildPayload: (text: string, mode: string) => { messages: Array<{ content: string }> };
+    };
+    expect(core.STRUCTURE_SYSTEM_PROMPT).toBe(STRUCTURE_SYSTEM_PROMPT);
+    expect(core.REPORT_STRUCTURE_SYSTEM_PROMPT).toBe(REPORT_STRUCTURE_SYSTEM_PROMPT);
+    expect(core.buildPayload('probe', 'items').messages[0].content).toBe(STRUCTURE_SYSTEM_PROMPT);
+    expect(core.buildPayload('probe', 'report').messages[0].content).toBe(REPORT_STRUCTURE_SYSTEM_PROMPT);
+  });
+
   it('共享 prompt 覆盖 report、lab/imaging/other、reportTypes、testPurpose 和 imaging.exams 协议', () => {
     const combined = `${STRUCTURE_SYSTEM_PROMPT}\n${REPORT_STRUCTURE_SYSTEM_PROMPT}`;
     for (const key of [...REPORT_FIELD_KEYS, ...IMAGING_FIELD_KEYS, ...ITEM_FIELD_KEYS]) {
