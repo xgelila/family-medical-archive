@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { AlertCircle, AlertTriangle, Check, Inbox, Info, TrendingUp } from 'lucide-react';
 import { db } from '../db';
-import { normalizeReportTypes, type Member, type Report, type ReportItem } from '../types';
+import type { Member, Report, ReportItem } from '../types';
 import { analyzeTrend, buildTrendPoint, numericItemNames, type TrendPoint } from '../utils/trend';
 import { Chip, EmptyState, Field } from './Kit';
 import { MiniLineChart } from './MiniLineChart';
@@ -19,7 +19,6 @@ export function TrendView({
   const [reports, setReports] = useState<Report[]>([]);
   const [items, setItems] = useState<ReportItem[]>([]);
   const [memberId, setMemberId] = useState('');
-  const [reportType, setReportType] = useState('');
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -61,33 +60,14 @@ export function TrendView({
       memberId ? items.filter((i) => i.memberId === memberId && labReportIds.has(i.reportId)) : [],
     [memberId, items, labReportIds],
   );
-  const memberLabReports = useMemo(
-    () => reports.filter((r) => r.memberId === memberId && (r.reportKind ?? 'lab') === 'lab'),
-    [reports, memberId],
-  );
-  const reportTypeCandidates = useMemo(
-    () =>
-      [...new Set(memberLabReports.flatMap(normalizeReportTypes))].sort((a, b) =>
-        a.localeCompare(b, 'zh'),
-      ),
-    [memberLabReports],
-  );
-  const filteredMemberItems = useMemo(
-    () =>
-      reportType
-        ? memberItems.filter((i) => {
-            const report = reports.find((r) => r.id === i.reportId);
-            return report ? normalizeReportTypes(report).includes(reportType) : false;
-          })
-        : memberItems,
-    [memberItems, reportType, reports],
-  );
-  // 趋势候选 = 数值型条目的检查项名称（含待确认，便于逐条核对）
-  const candidates = useMemo(() => numericItemNames(filteredMemberItems), [filteredMemberItems]);
+  // 趋势候选 = 数值型条目的检查项名称（含待确认，便于逐条核对）。
+  // 趋势只按「成员 + 检查项目（名称/结果类型/单位）」参与，报告类型不参与趋势，
+  // 因此候选直接基于该成员的 lab 数值条目（含无报告类型的报告）。
+  const candidates = useMemo(() => numericItemNames(memberItems), [memberItems]);
   const reportsById = useMemo(() => new Map(reports.map((r) => [r.id, r])), [reports]);
 
   // 选定名称下的条目（同成员、同检查项名称）
-  const namedItems = name ? filteredMemberItems.filter((i) => (i.name ?? '').trim() === name) : [];
+  const namedItems = name ? memberItems.filter((i) => (i.name ?? '').trim() === name) : [];
   // 待确认（confirmed=false）条目不参与趋势统计/连线；仍单独列表展示，可随时确认。
   const confirmedItems = namedItems.filter((i) => i.confirmed !== false);
   const pendingItems = namedItems.filter((i) => i.confirmed === false);
@@ -107,7 +87,6 @@ export function TrendView({
             value={memberId}
             onChange={(e) => {
               setMemberId(e.target.value);
-              setReportType('');
               setName('');
             }}
           >
@@ -115,23 +94,6 @@ export function TrendView({
             {members.map((m) => (
               <option key={m.id} value={m.id}>
                 {m.name}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="报告类型">
-          <select
-            value={reportType}
-            onChange={(e) => {
-              setReportType(e.target.value);
-              setName('');
-            }}
-            disabled={!memberId}
-          >
-            <option value="">全部检验类型</option>
-            {reportTypeCandidates.map((t) => (
-              <option key={t} value={t}>
-                {t}
               </option>
             ))}
           </select>

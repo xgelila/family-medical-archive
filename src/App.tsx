@@ -175,6 +175,12 @@ export default function App() {
                 onDone={closeForm}
               />
             )
+          ) : readOnlyReport ? (
+            <ReportDetailView
+              report={readOnlyReport}
+              memberName={memberName(readOnlyReport.memberId)}
+              onClose={() => setReadOnlyReport(null)}
+            />
           ) : (
             <>
               <div className="page-head">
@@ -187,6 +193,7 @@ export default function App() {
                   setCreatingReport(true);
                 }}
                 onEdit={(r) => setEditingReport(r)}
+                onView={(r) => setReadOnlyReport(r)}
               />
             </>
           ))}

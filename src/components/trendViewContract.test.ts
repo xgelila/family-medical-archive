@@ -36,12 +36,16 @@ describe('趋势页移除候选/连线解释辅助文本（保留标题、筛选
     expect(styles).toContain('.trend-rule-note');
   });
 
-  it('保留趋势页标题与筛选控件（成员、报告类型、检查项目）', () => {
+  it('保留趋势页标题与筛选控件（成员、检查项目），并移除顶部「报告类型」下拉', () => {
     expect(trend).toContain('选择成员与检查项目');
     expect(trend).toContain('请选择成员');
-    expect(trend).toContain('报告类型');
     expect(trend).toContain('检查项目 *');
     expect(trend).toContain('请选择检查项目');
+    // 需求：趋势只按「名称 + 单位」参与，报告类型不参与 → 移除报告类型下拉与相关过滤
+    expect(trend).not.toContain('<Field label="报告类型">');
+    expect(trend).not.toContain('reportTypeCandidates');
+    expect(trend).not.toContain('filteredMemberItems');
+    expect(trend).not.toContain('全部检验类型');
   });
 
   it('保留四种必备空态标题（加载 / 加载失败 / 未选择成员 / 无数据）', () => {
@@ -49,6 +53,15 @@ describe('趋势页移除候选/连线解释辅助文本（保留标题、筛选
     expect(trend).toContain('title="加载趋势数据失败"');
     expect(trend).toContain('title="选择成员与检查项目"');
     expect(trend).toContain('title="暂无趋势数据"');
+  });
+
+  it('趋势候选直接基于成员全部 lab 数值条目（不按报告类型过滤，含无报告类型报告）', () => {
+    expect(trend).toContain(
+      'const candidates = useMemo(() => numericItemNames(memberItems), [memberItems]);',
+    );
+    // 名称/单位才是曲线主键；报告类型不参与候选筛选
+    expect(trend).not.toContain('numericItemNames(filteredMemberItems)');
+    expect(trend).not.toContain('.filter((i) => {');
   });
 });
 
@@ -69,6 +82,8 @@ describe('趋势空态统一放入卡片内容容器（不落到外层灰色背�
     // 空态本身使用 EmptyState 的居中样式（.empty-state text-align: center），趋势页不再强制左对齐
     expect(styles).toContain('.empty-state');
     expect(styles.match(/\.empty-state \{[^}]*text-align: center;/)).not.toBeNull();
-    expect(styles).not.toMatch(/\.trend-empty \{[^}]*?(text-align: left|position: absolute|margin-left: -|margin-right: -)/);
+    expect(styles).not.toMatch(
+      /\.trend-empty \{[^}]*?(text-align: left|position: absolute|margin-left: -|margin-right: -)/,
+    );
   });
 });

@@ -1,13 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  AlertCircle,
-  Check,
-  ClipboardList,
-  FileText,
-  Image as ImageIcon,
-  Paperclip,
-} from 'lucide-react';
-import { db, deleteReportCascade, now } from '../db';
+import { Eye, FileText } from 'lucide-react';
+import { db, deleteReportCascade } from '../db';
 import {
   IMAGING_REPORT_TYPES,
   LAB_REPORT_TYPES,
@@ -17,7 +10,6 @@ import {
   type ImagingReport,
   type Member,
   type Report,
-  type ReportDetail,
   type ReportItem,
 } from '../types';
 import { mergeReportTypes, loadCustomReportTypes } from '../utils/customReportTypes';
@@ -52,11 +44,14 @@ export function ReportManager({
   bump,
   onCreate,
   onEdit,
+  onView,
 }: {
   refreshKey: number;
   bump: () => void;
   onCreate: () => void;
   onEdit: (r: Report) => void;
+  /** 点击列表卡片打开只读报告详情。 */
+  onView: (r: Report) => void;
 }) {
   const [members, setMembers] = useState<Member[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
@@ -184,11 +179,6 @@ export function ReportManager({
       })
       .sort((a, b) => b.reportDate.localeCompare(a.reportDate) || b.createdAt - a.createdAt);
   }, [reports, filters, kw, itemsByReport]);
-
-  const toggleConfirm = async (it: ReportItem) => {
-    await db.items.update(it.id, { confirmed: !it.confirmed, updatedAt: now() });
-    bump();
-  };
 
   const activeFilterCount =
     (filters.memberId ? 1 : 0) +
@@ -362,21 +352,17 @@ export function ReportManager({
               {visibleReports.map((r) => {
                 const member = memberById.get(r.memberId);
                 const its = itemsByReport.get(r.id) ?? [];
-                const matched = kw
-                  ? its.filter((it) =>
-                      [it.name, it.standardLabel ?? '', it.value, it.refRange, it.notes]
-                        .join(' ')
-                        .toLowerCase()
-                        .includes(kw),
-                    )
-                  : its;
                 const atts = attsByReport.get(r.id) ?? [];
-                const imagingExams = r.imaging ? getImagingSummaryExams(r.imaging) : [];
                 const pendingCount = its.filter((it) => !it.confirmed).length;
                 return (
                   <div key={r.id} className="card report-card">
                     <div className="report-head">
-                      <div>
+                      <button
+                        type="button"
+                        className="report-card-open"
+                        onClick={() => onView(r)}
+                        aria-label="查看报告详情"
+                      >
                         <div className="report-title">
                           {member ? (
                             <span className="member-tag">{member.name}</span>
@@ -402,7 +388,10 @@ export function ReportManager({
                         <div className="member-meta">
                           {its.length} 项检查 · {atts.length} 个附件
                         </div>
-                      </div>
+                        <span className="report-open-hint">
+                          <Eye size={14} strokeWidth={1.8} aria-hidden="true" /> 查看详情
+                        </span>
+                      </button>
                       <div className="card-actions">
                         <button type="button" className="btn btn-sm" onClick={() => onEdit(r)}>
                           编辑
@@ -416,70 +405,6 @@ export function ReportManager({
                         />
                       </div>
                     </div>
-
-                    {atts.length > 0 && (
-                      <div className="att-row">
-                        <span className="att-label">附件：</span>
-                        {atts.map((a) => (
-                          <AttachmentChip key={a.id} att={a} />
-                        ))}
-                      </div>
-                    )}
-
-                    {r.reportKind === 'imaging' && r.imaging && (
-                      <div className="report-imaging-summary">
-                        {imagingExams.map((exam, index) => (
-                          <div className="report-imaging-exam" key={`${r.id}-imaging-${index}`}>
-                            {imagingExams.length > 1 && (
-                              <strong>
-                                子检查 {index + 1}
-                                <br />
-                              </strong>
-                            )}
-                            <strong>检查部位：</strong>
-                            {exam.examPart || '—'}
-                            <br />
-                            <strong>检查方法：</strong>
-                            {exam.examMethod || '—'}
-                            <br />
-                            <strong>测量值：</strong>
-                            {exam.measurements.trim() || '未识别到测量值，可手动补充'}
-                            <br />
-                            <strong>影像所见：</strong>
-                            {exam.findings || '—'}
-                            <br />
-                            <strong>结论：</strong>
-                            {exam.impression || '—'}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    {its.length > 0 && r.reportKind !== 'imaging' && (
-                      <ReportCardItems
-                        items={its}
-                        matched={matched}
-                        kw={kw}
-                        toggleConfirm={toggleConfirm}
-                      />
-                    )}
-                    {kw && matched.length === 0 && (
-                      <div className="dim" style={{ padding: '6px 0' }}>
-                        该报告内无匹配“{kw}”的项目
-                      </div>
-                    )}
-                    {r.notes ? (
-                      <div className="report-notes">
-                        <strong>报告备注：</strong>
-                        {r.notes}
-                      </div>
-                    ) : null}
-                    {r.testPurpose ? (
-                      <div className="report-test-purpose">
-                        <strong>{r.reportKind === 'imaging' ? '检查目的' : '检验目的'}：</strong>
-                        {r.testPurpose}
-                      </div>
-                    ) : null}
-                    {r.details && r.details.length > 0 && <ReportDetails details={r.details} />}
                   </div>
                 );
               })}
@@ -488,159 +413,5 @@ export function ReportManager({
         </>
       )}
     </>
-  );
-}
-
-/**
- * 报告卡片内的检查项目区（移动端默认折叠为「查看检查项目」开关，展开后展示表格）。
- * 状态触摸目标在移动端至少 44px，并带 aria-pressed 可读状态。
- */
-function ReportCardItems({
-  items,
-  matched,
-  kw,
-  toggleConfirm,
-}: {
-  items: ReportItem[];
-  matched: ReportItem[];
-  kw: string;
-  toggleConfirm: (it: ReportItem) => void;
-}) {
-  // 桌面端默认展开表格；移动端默认折叠（依赖 matchMedia，测试环境走桌面分支）。
-  const [open, setOpen] = useState(
-    () => typeof window === 'undefined' || !window.matchMedia('(max-width: 640px)').matches,
-  );
-  const shown = kw ? matched : items;
-  return (
-    <div className="report-card-items">
-      <button
-        type="button"
-        className="report-items-toggle"
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-      >
-        检查项目（{shown.length} 项）{open ? '▴' : '▾'}
-      </button>
-      {open && (
-        <div className="table-wrap">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>状态</th>
-                <th>检查项目</th>
-                <th>结果</th>
-                <th>单位</th>
-                <th>参考区间</th>
-                <th>检验方法</th>
-                <th>备注</th>
-              </tr>
-            </thead>
-            <tbody>
-              {shown.map((it) => (
-                <tr key={it.id} className={it.confirmed ? '' : 'row-pending'}>
-                  <td>
-                    <button
-                      type="button"
-                      className={`status-toggle ${it.confirmed ? 'st-ok' : 'st-warn'}`}
-                      aria-pressed={it.confirmed}
-                      onClick={() => void toggleConfirm(it)}
-                      title="点击切换已确认/待确认"
-                    >
-                      {it.confirmed ? (
-                        <>
-                          <Check size={14} strokeWidth={2} aria-hidden="true" /> 已确认
-                        </>
-                      ) : (
-                        <>
-                          <AlertCircle size={14} strokeWidth={2} aria-hidden="true" /> 待确认
-                        </>
-                      )}
-                    </button>
-                  </td>
-                  <td>{it.name}</td>
-                  <td>
-                    {it.value}
-                    {it.resultKind === 'qualitative' && <Chip tone="neutral">定性</Chip>}
-                  </td>
-                  <td>{it.unit || <span className="dim">缺失</span>}</td>
-                  <td>{it.refRange || '—'}</td>
-                  <td>{it.testMethod || '—'}</td>
-                  <td className="dim">{it.notes || '—'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ReportDetails({ details }: { details: ReportDetail[] }) {
-  const [open, setOpen] = useState(false);
-  const nonEmpty = details.filter((d) => d.value.trim() !== '');
-  if (nonEmpty.length === 0) return null;
-  return (
-    <div className="report-details">
-      <button
-        type="button"
-        className="details-toggle report-details-toggle"
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-      >
-        <strong className="details-linear">
-          <ClipboardList size={16} strokeWidth={1.8} aria-hidden="true" /> 报告详情（
-          {nonEmpty.length} 项：送检医生 / 检验者 / 审核者等附加信息）
-        </strong>
-        <span className="dim">{open ? '▴' : '▾'}</span>
-      </button>
-      {open && (
-        <dl className="report-details-body">
-          {nonEmpty.map((d, i) => (
-            <div key={i} className="report-details-row">
-              <dt>{d.label}</dt>
-              <dd>{d.value}</dd>
-            </div>
-          ))}
-        </dl>
-      )}
-    </div>
-  );
-}
-
-function AttachmentChip({ att }: { att: AttachmentRecord }) {
-  const [url, setUrl] = useState<string | null>(null);
-  useEffect(() => {
-    let revoked = false;
-    const u = URL.createObjectURL(att.blob);
-    if (!revoked) setUrl(u);
-    return () => {
-      revoked = true;
-      URL.revokeObjectURL(u);
-    };
-  }, [att]);
-
-  const open = () => {
-    if (url) window.open(url, att.kind === 'image' ? '_blank' : '_blank');
-  };
-
-  const kindIcon =
-    att.kind === 'image' ? (
-      <ImageIcon size={15} strokeWidth={1.8} aria-hidden="true" />
-    ) : att.kind === 'pdf' ? (
-      <FileText size={15} strokeWidth={1.8} aria-hidden="true" />
-    ) : (
-      <Paperclip size={15} strokeWidth={1.8} aria-hidden="true" />
-    );
-  return (
-    <button
-      type="button"
-      className="att-chip"
-      onClick={open}
-      title={`打开附件 ${att.name}（新窗口）`}
-    >
-      {kindIcon} {att.name}
-      {(att.size / 1024).toFixed(0)}KB
-    </button>
   );
 }

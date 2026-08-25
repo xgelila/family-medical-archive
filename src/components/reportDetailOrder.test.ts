@@ -33,16 +33,19 @@ describe('报告详情固定在检查项目列表底部（报告基础字段 -> 
     expect(itemsAt).toBeLessThan(detailsAt);
   });
 
-  it('ReportManager：检查项目表格在报告详情（report-details）之前，且详情入口默认存在', () => {
-    const src = read('ReportManager.tsx');
-    const itemsTableAt = indexOf(src, 'className="data-table"');
-    const detailsAt = indexOf(src, '<div className="report-details">');
-    expect(itemsTableAt).toBeGreaterThan(0);
-    expect(detailsAt).toBeGreaterThan(0);
-    expect(itemsTableAt).toBeLessThan(detailsAt);
-    // 详情入口不混入附件信息：附件区块在项目表格之前
-    const attsAt = indexOf(src, 'className="att-row"');
-    expect(attsAt).toBeLessThan(itemsTableAt);
+  it('只读报告详情（ReportDetailView）：报告基础字段 -> 检查项目 -> 报告详情，详情入口默认存在', () => {
+    // 列表卡片为摘要入口，完整内容（基础信息 -> 检查项目 -> 报告详情）在只读详情页展示。
+    const src = read('ReportDetailView.tsx');
+    const basicAt = indexOf(src, 'className="readonly-basic form-grid"');
+    const itemsAt = indexOf(src, '检查项目（{items.length} 项）');
+    const detailsAt = indexOf(src, '<div className="details-section">');
+    expect(basicAt).toBeGreaterThan(0);
+    expect(itemsAt).toBeGreaterThan(basicAt);
+    expect(detailsAt).toBeGreaterThan(itemsAt);
+    // 详情入口不混入附件信息：附件区块在检查项目之前
+    const attsAt = indexOf(src, '附件（{attachments.length}）');
+    expect(attsAt).toBeGreaterThan(0);
+    expect(attsAt).toBeLessThan(itemsAt);
   });
 
   it('报告详情仍可折叠且入口默认可见（details-section 使用可切换按钮，默认折叠）', () => {

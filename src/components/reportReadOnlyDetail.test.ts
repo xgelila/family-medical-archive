@@ -92,6 +92,14 @@ describe('列表查看/编辑入口仍为可编辑（仅趋势「查看报告」
     expect(manager).toContain('onClick={() => onEdit(r)}');
   });
 
+  it('报告列表卡片为摘要入口：点击 onView 打开只读详情（App 报告中 tab 也渲染 ReportDetailView）', () => {
+    expect(manager).toContain('onView: (r: Report) => void;');
+    expect(manager).toContain('onClick={() => onView(r)}');
+    // App 报告 tab：点击列表卡片进入只读详情（readOnlyReport 态），并在该 tab 渲染 ReportDetailView
+    expect(app).toContain('onView={(r) => setReadOnlyReport(r)}');
+    expect(s(app, 'readOnlyReport ? (<ReportDetailView')).toBe(true);
+  });
+
   it('App 报告列表编辑仍走 ReportReview（不因只读改造改变列表编辑路径）', () => {
     expect(app).toContain('<ReportReview');
     expect(app).toContain('editingReport={editingReport}');

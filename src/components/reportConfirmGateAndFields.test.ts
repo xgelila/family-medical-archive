@@ -21,6 +21,7 @@ const read = (p: string) => readFileSync(join(root, 'src', p), 'utf-8');
 
 const review = read('components/ReportReview.tsx');
 const manager = read('components/ReportManager.tsx');
+const detail = read('components/ReportDetailView.tsx');
 const styles = readFileSync(join(root, 'src', 'styles.css'), 'utf-8');
 
 describe('标准标签（standardLabel）：数据模型保留，UI 层完全不渲染', () => {
@@ -55,9 +56,9 @@ describe('试验方法（testMethod）：检查项目字段，与单位/参考�
 
   });
 
-  it('报告卡片（ReportManager）展示「检验方法」列', () => {
-    expect(manager).toContain('<th>检验方法</th>');
-    expect(manager).toContain('it.testMethod ||');
+  it('只读报告详情（ReportDetailView）展示「检验方法」列', () => {
+    expect(detail).toContain('<th>检验方法</th>');
+    expect(detail).toContain('it.testMethod ||');
   });
 
   it('识别候选：method 进入草稿 testMethod，不入 notes（纯函数）', () => {
@@ -98,9 +99,9 @@ describe('状态「待确认」列移到检查项目表第一列', () => {
     }
   });
 
-  it('报告卡片（ReportManager）：状态列为第一项', () => {
-    const statusPos = manager.indexOf('<th>状态</th>');
-    const itemPos = manager.indexOf('<th>检查项目</th>');
+  it('只读报告详情（ReportDetailView）：状态列为第一项', () => {
+    const statusPos = detail.indexOf('<th>状态</th>');
+    const itemPos = detail.indexOf('<th>检查项目</th>');
     expect(statusPos).toBeGreaterThan(-1);
     expect(itemPos).toBeGreaterThan(statusPos);
   });
@@ -117,9 +118,9 @@ describe('报告详情默认折叠，用户主动点击后才展开', () => {
     expect(review).toContain('const [detailsOpen, setDetailsOpen] = useState(false);');
   });
 
-  it('已保存报告展示（ReportManager）默认折叠但可展开', () => {
-    expect(manager).toContain('const [open, setOpen] = useState(false)');
-    expect(manager).toContain('aria-expanded={open}');
+  it('已保存报告展示（ReportDetailView）默认折叠但可展开', () => {
+    expect(detail).toContain('const [detailsOpen, setDetailsOpen] = useState(false)');
+    expect(detail).toContain('aria-expanded={detailsOpen}');
   });
 });
 

@@ -534,6 +534,34 @@ body {
   padding: 14px 16px;
 }
 
+/* 列表卡片 = 可点击摘要入口：点击进入只读报告详情（完整内容在只读详情页展示）。 */
+.report-card-open {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  flex: 1 1 240px;
+  min-height: 44px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--ink);
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+.report-card-open:hover .report-open-hint {
+  text-decoration: underline;
+}
+.report-open-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+  color: var(--accent);
+  font-size: 13px;
+}
+
 .report-head {
   display: flex;
   justify-content: space-between;

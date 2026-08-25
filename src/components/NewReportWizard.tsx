@@ -497,16 +497,24 @@ export function NewReportWizard({
             {step === 2 && addPhase === 'recognition' && !manualMode && recognitionBusy && (
               <span className="wizard-busy dim">识别进行中…</span>
             )}
-            {step === 2 && addPhase === 'recognition' && !manualMode && recogPhase === 'done' && (
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={() => reviewPanelRef.current?.enterReview()}
-              >
-                进入核对并保存{' '}
-                <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
-              </button>
-            )}
+            {/* 识别完成可进入核对；从第三步返回第二步时面板重挂载会把 recogPhase 重置为 idle，
+                但识别草稿仍存在（recognizedReportMeta / recognizedItems 非空），此时 CTA 必须仍可见，
+                否则无法再进入第三步。 */}
+            {step === 2 &&
+              addPhase === 'recognition' &&
+              !manualMode &&
+              (recogPhase === 'done' ||
+                recognizedReportMeta != null ||
+                recognizedItems.length > 0) && (
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => reviewPanelRef.current?.enterReview()}
+                >
+                  进入核对并保存{' '}
+                  <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
+                </button>
+              )}
           </div>
         </div>
       )}

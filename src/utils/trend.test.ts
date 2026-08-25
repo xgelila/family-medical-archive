@@ -63,6 +63,56 @@ describe('parseNumeric', () => {
   });
 });
 
+function reportNoType(id: string, date: string, hospital: string): Report {
+  return {
+    id,
+    memberId: 'm1',
+    hospital,
+    reportDate: date,
+    reportType: '', // 无报告类型的 lab 报告
+    reportTypes: [],
+    title: '',
+    notes: '',
+    attachmentIds: [],
+    createdAt: 0,
+    updatedAt: 0,
+  };
+}
+
+describe('analyzeTrend 不按报告类型过滤（报告类型不参与趋势）', () => {
+  it('无报告类型（reportType 为空）的 lab 报告，其数值条目也进入趋势候选与曲线', () => {
+    const r = analyzeTrend(
+      [item('r1', 'i1', '血糖', '5.2', 'mmol/L', 'numeric', true)],
+      new Map([['r1', reportNoType('r1', '2024-01-01', '甲医院')]]),
+    );
+    expect(r.kind).toBe('numeric-single-unit');
+    if (r.kind === 'numeric-single-unit') {
+      expect(r.series.originalName).toBe('血糖');
+      expect(r.series.points).toHaveLength(1);
+      expect(r.series.points[0].itemId).toBe('i1');
+    }
+  });
+
+  it('不同报告类型的同成员同项目同单位仍合并为一条曲线（报告类型不拆线）', () => {
+    const typedA = { ...reports.get('r1')!, reportType: '血糖', reportTypes: ['血糖'] };
+    const typedB = { ...reports.get('r2')!, reportType: '血常规', reportTypes: ['血常规'] };
+    const r = analyzeTrend(
+      [
+        item('r1', 'i1', '血糖', '5.2', 'mmol/L', 'numeric', true),
+        item('r2', 'i2', '血糖', '6.1', 'mmol/L', 'numeric', true),
+      ],
+      new Map([
+        ['r1', typedA],
+        ['r2', typedB],
+      ]),
+    );
+    expect(r.kind).toBe('numeric-single-unit');
+    if (r.kind === 'numeric-single-unit') {
+      expect(r.series.points).toHaveLength(2);
+    }
+  });
+});
+
 describe('analyzeTrend 按检查项名称分组（不再依赖标准标签）', () => {
   it('同成员、同一检查项名称、同单位 → numeric-single-unit 可连线（无需标准标签）', () => {
     const r = analyzeTrend(

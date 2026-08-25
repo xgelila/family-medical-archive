@@ -316,6 +316,14 @@ describe('步骤2识别完成：统一底部操作栏（返回左、进入核对
     expect(wizard).toContain('取消');
     expect(wizard).toContain('下一步');
   });
+
+  it('回归：从第三步返回第二步后面板重挂载把 recogPhase 重置为 idle，CTA 仍因存在识别草稿而显示', () => {
+    const src = wizard.replace(/\s+/g, '');
+    // 面板初始 phase='idle'（重挂载后 onPhaseChange('idle') 会把父级 recogPhase 重置为 idle）
+    expect(panel).toContain("useState<Phase>('idle')");
+    // 父级 CTA 条件：recogPhase==='done' 或存在识别草稿（recognizedReportMeta/recognizedItems）
+    expect(src).toContain("recogPhase==='done'||recognizedReportMeta!=null||recognizedItems.length>0");
+  });
 });
 
 describe('新建报告向导：样式移除旧四步圆圈导航，保留三步当前进度', () => {

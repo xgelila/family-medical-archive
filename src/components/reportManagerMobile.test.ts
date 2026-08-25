@@ -59,16 +59,21 @@ describe('阶段 4：报告列表移动端', () => {
     expect(manager).toContain('清除筛选（{activeFilterCount}）');
   });
 
-  it('完整项目通过「检查项目」折叠开关查看，带 aria-expanded', () => {
-    expect(manager).toContain('report-items-toggle');
-    expect(manager).toContain('aria-expanded={open}');
-    expect(manager).toContain('检查项目（{shown.length} 项）');
+  it('列表卡片为可点击摘要入口（日期/医院/报告类型/检查项数/附件数），点击进入只读详情，不再展开全字段', () => {
+    expect(manager).toContain('className="report-card-open"');
+    expect(manager).toContain('onClick={() => onView(r)}');
+    expect(manager).toContain('查看详情');
+    expect(manager).toContain('{its.length} 项检查 · {atts.length} 个附件');
+    // 摘要卡片不再内嵌检查项目表 / 附件区 / 影像 / 报告备注 / 报告详情
+    expect(manager).not.toContain('report-items-toggle');
+    expect(manager).not.toContain('<th>检查项目</th>');
+    expect(manager).not.toContain('className="att-row"');
+    expect(manager).not.toContain('report-imaging-summary');
+    expect(manager).not.toContain('<div className="report-details">');
   });
 
-  it('状态切换带 aria-pressed 可读状态，且移动端触摸目标至少 44px', () => {
-    expect(manager).toContain('aria-pressed={it.confirmed}');
-    expect(styles).toContain('.status-toggle {');
+  it('摘要入口触摸目标至少 44px（移动端优先）', () => {
+    expect(styles).toContain('.report-card-open {');
     expect(styles).toContain('min-height: 44px;');
-    expect(styles).toContain('min-width: 44px;');
   });
 });
