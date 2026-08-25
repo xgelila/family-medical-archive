@@ -44,6 +44,9 @@ export default function App() {
   const [creatingReport, setCreatingReport] = useState(false);
   // 趋势「查看报告」进入的只读详情（不提供编辑/保存/删除入口）
   const [readOnlyReport, setReadOnlyReport] = useState<Report | null>(null);
+  // 编辑入口来源：'list'=报告列表直接编辑，'detail'=从只读详情进入编辑。
+  // 用于关闭表单后决定返回目的页（报告详情 or 报告列表）。
+  const [editOrigin, setEditOrigin] = useState<'list' | 'detail'>('list');
 
   const [members, setMembers] = useState<Member[]>([]);
   const [stats, setStats] = useState<{
@@ -89,15 +92,34 @@ export default function App() {
 
   const memberName = (id: string) => members.find((m) => m.id === id)?.name ?? '未知成员';
 
-  const closeForm = (saved: boolean) => {
+  const closeForm = async (saved: boolean) => {
+    // 记录编辑来源与只读详情目标报告 id，来源决定关闭表单后返回目的页。
+    const origin = editOrigin;
+    const roId = readOnlyReport?.id;
     setEditingReport(null);
     setCreatingReport(false);
+    setEditOrigin('list');
     if (saved) bump();
+    if (origin === 'detail' && roId) {
+      // 从详情进入编辑：返回详情页（readOnlyReport 编辑期间保留、未清空）。
+      // 保存成功后重新加载最新报告，避免详情展示保存前的旧字段。
+      if (saved) {
+        try {
+          const fresh = await db.reports.get(roId);
+          if (fresh) setReadOnlyReport(fresh);
+        } catch {
+          /* 重新加载失败则保留现有详情 */
+        }
+      }
+    } else {
+      // 从列表直接编辑 / 新建：返回报告列表。
+      setReadOnlyReport(null);
+    }
   };
 
-  /** 从只读详情页进入编辑：关闭只读详情并打开编辑表单。 */
+  /** 从只读详情页进入编辑：保留 readOnlyReport 作为返回目标（详情页），仅打开编辑表单。 */
   const openEditFromDetail = (r: Report) => {
-    setReadOnlyReport(null);
+    setEditOrigin('detail');
     setEditingReport(r);
   };
 
@@ -199,7 +221,10 @@ export default function App() {
                 onCreate={() => {
                   setCreatingReport(true);
                 }}
-                onEdit={(r) => setEditingReport(r)}
+                onEdit={(r) => {
+                  setEditOrigin('list');
+                  setEditingReport(r);
+                }}
                 onView={(r) => setReadOnlyReport(r)}
               />
             </>

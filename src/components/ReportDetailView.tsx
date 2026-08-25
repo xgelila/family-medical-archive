@@ -19,6 +19,7 @@ import {
   type ReportItem,
 } from '../types';
 import { getImagingSummaryExams } from './ReportManager';
+import { AttachmentViewer } from './AttachmentViewer';
 import { toDisplayDate } from '../utils/dates';
 
 /**
@@ -43,6 +44,7 @@ export function ReportDetailView({
   const [items, setItems] = useState<ReportItem[]>([]);
   const [attachments, setAttachments] = useState<AttachmentRecord[]>([]);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [preview, setPreview] = useState<AttachmentRecord | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -143,7 +145,7 @@ export function ReportDetailView({
           <strong className="ro-section-title">附件（{attachments.length}）</strong>
           <div className="att-row">
             {attachments.map((a) => (
-              <AttachmentDisplay key={a.id} att={a} />
+              <AttachmentDisplay key={a.id} att={a} onOpen={setPreview} />
             ))}
           </div>
         </div>
@@ -309,6 +311,7 @@ export function ReportDetailView({
           </div>
         )}
       </div>
+      <AttachmentViewer attachment={preview} onClose={() => setPreview(null)} />
     </div>
   );
 }
@@ -317,18 +320,13 @@ function reportKindHasImaging(report: Report): boolean {
   return (report.reportKind ?? 'lab') === 'imaging';
 }
 
-function AttachmentDisplay({ att }: { att: AttachmentRecord }) {
-  const [url, setUrl] = useState<string | null>(null);
-  useEffect(() => {
-    let revoked = false;
-    const u = URL.createObjectURL(att.blob);
-    if (!revoked) setUrl(u);
-    return () => {
-      revoked = true;
-      URL.revokeObjectURL(u);
-    };
-  }, [att]);
-
+function AttachmentDisplay({
+  att,
+  onOpen,
+}: {
+  att: AttachmentRecord;
+  onOpen: (a: AttachmentRecord) => void;
+}) {
   const kindIcon =
     att.kind === 'image' ? (
       <ImageIcon size={15} strokeWidth={1.8} aria-hidden="true" />
@@ -341,10 +339,8 @@ function AttachmentDisplay({ att }: { att: AttachmentRecord }) {
     <button
       type="button"
       className="att-chip"
-      onClick={() => {
-        if (url) window.open(url, '_blank');
-      }}
-      title={`打开附件 ${att.name}（新窗口）`}
+      onClick={() => onOpen(att)}
+      title={`查看附件 ${att.name}`}
     >
       {kindIcon} {att.name}
       {(att.size / 1024).toFixed(0)}KB

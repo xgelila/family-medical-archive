@@ -28,6 +28,7 @@ import {
   type CustomReportType,
 } from '../utils/customReportTypes';
 import { Field, ConfirmButton } from './Kit';
+import { AttachmentViewer } from './AttachmentViewer';
 import { ReportTypeManagerModal } from './ReportTypeManager';
 import { todayISO } from '../utils/dates';
 import {
@@ -132,6 +133,7 @@ export function ReportReview({
     editingReport ? [] : initialAttachments,
   );
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [preview, setPreview] = useState<AttachmentRecord | null>(null);
   // 第三步拆成两个连续页面：报告信息（info）→ 核对检查项目（items），移动端优先。
   const [view, setView] = useState<'info' | 'items'>('info');
   const [busy, setBusy] = useState(false);
@@ -511,7 +513,13 @@ export function ReportReview({
             <span className="dim">未选择附件</span>
           ) : (
             <ul className="att-summary-list">
-              {attachments.map((a) => <li key={a.id}>{a.name}</li>)}
+              {attachments.map((a) => (
+                <li key={a.id}>
+                  <button type="button" className="att-summary-open" onClick={() => setPreview(a)}>
+                    {a.name}
+                  </button>
+                </li>
+              ))}
             </ul>
           )}
         </div>
@@ -573,7 +581,7 @@ export function ReportReview({
                 ) : (
                   attachments.map((a) => (
                     <span key={a.id} className="att-chip-row">
-                      <span className="att-chip" title={a.name}>
+                      <button type="button" className="att-chip" title={`查看附件 ${a.name}`} onClick={() => setPreview(a)}>
                         {a.kind === 'image' ? (
                           <ImageIcon size={14} strokeWidth={1.8} aria-hidden="true" />
                         ) : a.kind === 'pdf' ? (
@@ -582,7 +590,7 @@ export function ReportReview({
                           <Paperclip size={14} strokeWidth={1.8} aria-hidden="true" />
                         )}{' '}
                         {a.name}
-                      </span>
+                      </button>
                       <ConfirmButton
                         label="移除"
                         confirmText={`移除附件「${a.name}」`}
@@ -1056,6 +1064,8 @@ export function ReportReview({
           onChanged={() => void refreshCustomTypes()}
         />
       )}
+
+      <AttachmentViewer attachment={preview} onClose={() => setPreview(null)} />
     </div>
   );
 }

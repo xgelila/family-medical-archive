@@ -115,6 +115,8 @@ describe('列表查看/编辑入口仍为可编辑（仅趋势「查看报告」
   it('App 报告列表编辑仍走 ReportReview（不因只读改造改变列表编辑路径）', () => {
     expect(app).toContain('<ReportReview');
     expect(app).toContain('editingReport={editingReport}');
-    expect(app).toContain('onEdit={(r) => setEditingReport(r)}');
+    // 列表直接编辑：记录 source=list 后打开 ReportReview（返回回列表）
+    expect(app).toContain("setEditOrigin('list')");
+    expect(app).toContain('setEditingReport(r)');
   });
 });
