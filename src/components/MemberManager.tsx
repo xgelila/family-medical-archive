@@ -3,7 +3,7 @@ import { Users } from 'lucide-react';
 import { db, deleteMemberCascade, now, uid } from '../db';
 import { EMPTY_MEMBER, type Member } from '../types';
 import { ageByBirthDate, formatTimestamp } from '../utils/dates';
-import { Chip, ConfirmButton, EmptyState, Field, Section } from './Kit';
+import { Chip, ConfirmButton, EmptyState, Field, Section, ViewState } from './Kit';
 
 const RELATIONS = ['本人', '配偶', '父亲', '母亲', '儿子', '女儿', '其他'];
 const GENDERS = ['男', '女', '未填写'] as const;
@@ -14,24 +14,38 @@ export function MemberManager({ refreshKey, bump }: { refreshKey: number; bump: 
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Member | null>(null);
   const [deleteError, setDeleteError] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const reload = async () => {
-    const list = await db.members.orderBy('createdAt').toArray();
-    setMembers(list);
-    const c = new Map<string, { reports: number; items: number }>();
-    for (const m of list) {
-      const [reports, items] = await Promise.all([
-        db.reports.where('memberId').equals(m.id).count(),
-        db.items.where('memberId').equals(m.id).count(),
-      ]);
-      c.set(m.id, { reports, items });
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const list = await db.members.orderBy('createdAt').toArray();
+      setMembers(list);
+      const c = new Map<string, { reports: number; items: number }>();
+      for (const m of list) {
+        const [reports, items] = await Promise.all([
+          db.reports.where('memberId').equals(m.id).count(),
+          db.items.where('memberId').equals(m.id).count(),
+        ]);
+        c.set(m.id, { reports, items });
+      }
+      setCounts(c);
+    } catch {
+      setLoadError('成员数据加载失败，请重试。');
+    } finally {
+      setLoading(false);
     }
-    setCounts(c);
   };
 
   useEffect(() => {
     void reload();
   }, [refreshKey]);
+
+  const retry = () => {
+    void reload();
+  };
 
   const openNew = () => {
     setEditing(null);
@@ -86,7 +100,15 @@ export function MemberManager({ refreshKey, bump }: { refreshKey: number; bump: 
           onSave={save}
         />
       )}
-      {members.length === 0 && !formOpen ? (
+      {loading ? (
+        <ViewState
+          loading
+          loadingTitle="正在加载成员…"
+          loadingIcon={<Users size={22} strokeWidth={1.8} aria-hidden="true" />}
+        />
+      ) : loadError ? (
+        <ViewState error={loadError} onRetry={retry} errorTitle="加载成员失败" />
+      ) : members.length === 0 && !formOpen ? (
         <EmptyState
           icon={<Users size={40} strokeWidth={1.5} aria-hidden="true" />}
           title="还没有家庭成员"

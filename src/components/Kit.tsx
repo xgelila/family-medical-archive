@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { FileText } from 'lucide-react';
+import { AlertCircle, FileText } from 'lucide-react';
 
 /** 全局提示条：本地存储 + 识别结果核对 + 非医疗诊断边界 */
 export function Disclaimer() {
@@ -48,6 +48,58 @@ export function SelectEmptyHint({ when, message }: { when: boolean; message: str
       {message}
     </small>
   );
+}
+
+/**
+ * 统一视图加载/错误态（首页概览 / 成员管理 / 报告列表等 Dexie 异步加载视图）。
+ * - 首次加载：居中 loading（spinner + 文案，role="status" aria-live="polite"），不闪烁；
+ * - 加载失败：错误 + 单一「重试」主操作（role="alert"），重试重新触发加载；
+ * - 内容统一包裹在 .card 内容容器内，不落到外层灰背景；重试按钮移动端 >=44px。
+ * 复用现有 EmptyState 组件与颜色 token，不引入新框架。
+ */
+export function ViewState({
+  loading,
+  error,
+  onRetry,
+  loadingTitle = '正在加载…',
+  errorTitle = '加载失败',
+  loadingIcon,
+}: {
+  loading?: boolean;
+  error?: string | null;
+  onRetry?: () => void;
+  loadingTitle?: string;
+  errorTitle?: string;
+  loadingIcon?: ReactNode;
+}) {
+  if (loading) {
+    return (
+      <div className="card view-state" role="status" aria-live="polite">
+        <div className="view-state-body">
+          <span className="view-state-spinner" aria-hidden="true" />
+          <div className="view-state-text">{loadingTitle}</div>
+          {loadingIcon}
+        </div>
+      </div>
+    );
+  }
+  if (error) {
+    return (
+      <div className="card view-state" role="alert">
+        <EmptyState
+          icon={<AlertCircle size={40} strokeWidth={1.5} aria-hidden="true" />}
+          title={errorTitle}
+          desc={error}
+          action={
+            <button type="button" className="btn btn-primary" onClick={onRetry}>
+              重试
+            </button>
+          }
+        />
+      </div>
+    );
+  }
+  return null;
 }
 
 export function Chip({

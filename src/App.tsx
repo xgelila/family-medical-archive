@@ -13,7 +13,7 @@ import {
 import { db } from './db';
 import type { Member, Report } from './types';
 import type { LucideIcon } from 'lucide-react';
-import { Disclaimer } from './components/Kit';
+import { Disclaimer, ViewState } from './components/Kit';
 import { MemberManager } from './components/MemberManager';
 import { ReportManager } from './components/ReportManager';
 import { NewReportWizard } from './components/NewReportWizard';
@@ -59,19 +59,30 @@ export default function App() {
   });
   const [latestReports, setLatestReports] = useState<Report[]>([]);
   const [privacyOpen, setPrivacyOpen] = useState(false);
+  // 首页概览数据（统计 + 最近报告）异步加载状态
+  const [overviewLoading, setOverviewLoading] = useState(true);
+  const [overviewError, setOverviewError] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
-      const [ms, rsCount, itsCount, atsCount, rs] = await Promise.all([
-        db.members.toArray(),
-        db.reports.count(),
-        db.items.count(),
-        db.attachments.count(),
-        db.reports.orderBy('reportDate').reverse().limit(5).toArray(),
-      ]);
-      setMembers(ms);
-      setStats({ members: ms.length, reports: rsCount, items: itsCount, attachments: atsCount });
-      setLatestReports(rs);
+      setOverviewLoading(true);
+      setOverviewError(null);
+      try {
+        const [ms, rsCount, itsCount, atsCount, rs] = await Promise.all([
+          db.members.toArray(),
+          db.reports.count(),
+          db.items.count(),
+          db.attachments.count(),
+          db.reports.orderBy('reportDate').reverse().limit(5).toArray(),
+        ]);
+        setMembers(ms);
+        setStats({ members: ms.length, reports: rsCount, items: itsCount, attachments: atsCount });
+        setLatestReports(rs);
+      } catch {
+        setOverviewError('概览数据加载失败，请重试。');
+      } finally {
+        setOverviewLoading(false);
+      }
     };
     void load();
   }, [refreshKey]);
@@ -130,6 +141,9 @@ export default function App() {
             stats={stats}
             latestReports={latestReports}
             memberName={memberName}
+            loading={overviewLoading}
+            error={overviewError}
+            onRetry={bump}
             onCreate={() => {
               setCreatingReport(true);
               setTab('reports');
@@ -228,15 +242,33 @@ function Overview({
   stats,
   latestReports,
   memberName,
+  loading,
+  error,
+  onRetry,
   onCreate,
   onGoto,
 }: {
   stats: { members: number; reports: number; items: number; attachments: number };
   latestReports: Report[];
   memberName: (id: string) => string;
+  loading: boolean;
+  error: string | null;
+  onRetry: () => void;
   onCreate: () => void;
   onGoto: (t: Tab) => void;
 }) {
+  if (loading) {
+    return (
+      <ViewState
+        loading
+        loadingTitle="正在加载概览…"
+        loadingIcon={<Activity size={22} strokeWidth={1.8} aria-hidden="true" />}
+      />
+    );
+  }
+  if (error) {
+    return <ViewState error={error} onRetry={onRetry} errorTitle="加载概览失败" />;
+  }
   const isEmpty = stats.members === 0 && stats.reports === 0;
   return (
     <div className="overview">
