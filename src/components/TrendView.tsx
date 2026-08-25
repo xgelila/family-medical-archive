@@ -21,19 +21,35 @@ export function TrendView({
   const [memberId, setMemberId] = useState('');
   const [reportType, setReportType] = useState('');
   const [name, setName] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setLoadError(null);
     const load = async () => {
-      const [ms, rs, its] = await Promise.all([
-        db.members.toArray(),
-        db.reports.toArray(),
-        db.items.toArray(),
-      ]);
-      setMembers(ms);
-      setReports(rs);
-      setItems(its);
+      try {
+        const [ms, rs, its] = await Promise.all([
+          db.members.toArray(),
+          db.reports.toArray(),
+          db.items.toArray(),
+        ]);
+        if (cancelled) return;
+        setMembers(ms);
+        setReports(rs);
+        setItems(its);
+      } catch {
+        if (cancelled) return;
+        setLoadError('趋势数据加载失败，请刷新重试。');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     };
     void load();
+    return () => {
+      cancelled = true;
+    };
   }, [refreshKey]);
 
   const labReportIds = useMemo(
@@ -132,7 +148,18 @@ export function TrendView({
         </Field>
       </div>
 
-      {!memberId || !name ? (
+      {loading ? (
+        <TrendEmptyCard
+          icon={<TrendingUp size={40} strokeWidth={1.5} aria-hidden="true" />}
+          title="正在加载趋势数据…"
+        />
+      ) : loadError ? (
+        <TrendEmptyCard
+          icon={<AlertCircle size={40} strokeWidth={1.5} aria-hidden="true" />}
+          title="加载趋势数据失败"
+          desc={loadError}
+        />
+      ) : !memberId || !name ? (
         <TrendEmptyCard
           icon={<TrendingUp size={40} strokeWidth={1.5} aria-hidden="true" />}
           title="选择成员与检查项目"

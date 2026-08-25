@@ -39,7 +39,9 @@ describe('趋势页移除候选/连线解释辅助文本（保留标题、筛选
     expect(trend).toContain('请选择检查项目');
   });
 
-  it('保留必要空态标题（未选择成员 / 无趋势数据）', () => {
+  it('保留四种必备空态标题（加载 / 加载失败 / 未选择成员 / 无数据）', () => {
+    expect(trend).toContain('title="正在加载趋势数据…"');
+    expect(trend).toContain('title="加载趋势数据失败"');
     expect(trend).toContain('title="选择成员与检查项目"');
     expect(trend).toContain('title="暂无趋势数据"');
   });
