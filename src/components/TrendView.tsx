@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { AlertCircle, AlertTriangle, Check, Inbox, Info, TrendingUp } from 'lucide-react';
 import { db } from '../db';
 import { normalizeReportTypes, type Member, type Report, type ReportItem } from '../types';
@@ -83,8 +83,6 @@ export function TrendView({
     [confirmedItems, reportsById],
   );
 
-  const member = members.find((m) => m.id === memberId);
-
   return (
     <div className="trend-view">
       <div className="toolbar card">
@@ -122,13 +120,8 @@ export function TrendView({
             ))}
           </select>
         </Field>
-        <Field label="检查项目 *" hint="同名同单位才连线；不同名称独立展示">
-          <select
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            disabled={!memberId}
-            title="趋势严格按「同一成员、同一检查项名称 + 检查类别 + 单位」连线；不同名称（如 糖化血红蛋白Al 与 糖化血红蛋白Alc）始终为独立曲线，不合并"
-          >
+        <Field label="检查项目 *">
+          <select value={name} onChange={(e) => setName(e.target.value)} disabled={!memberId}>
             <option value="">{memberId ? '请选择检查项目' : '先选择成员'}</option>
             {candidates.map((n) => (
               <option key={n} value={n}>
@@ -137,25 +130,12 @@ export function TrendView({
             ))}
           </select>
         </Field>
-        {memberId && (
-          <span className="toolbar-note">
-            {candidates.length === 0
-              ? '该成员暂无数值型检查项目可用于趋势'
-              : `${member?.name ?? ''} 有 ${candidates.length} 个检查项可用于趋势`}
-          </span>
-        )}
-      </div>
-
-      <div className="trend-rule-note" role="note">
-        <Info size={16} strokeWidth={2} aria-hidden="true" />
-        仅同一成员、同名同类别同单位的已确认数值会连线；其余记录仅展示原文。
       </div>
 
       {!memberId || !name ? (
-        <EmptyState
+        <TrendEmptyCard
           icon={<TrendingUp size={40} strokeWidth={1.5} aria-hidden="true" />}
           title="选择成员与检查项目"
-          desc="仅同名同类别同单位的已确认数值会连线；名称或单位不同会分开展示，绝不自动换算。"
         />
       ) : (
         <>
@@ -188,7 +168,7 @@ function renderAnalysis(
 ) {
   if (analysis.kind === 'no-data') {
     return (
-      <EmptyState
+      <TrendEmptyCard
         icon={<Inbox size={40} strokeWidth={1.5} aria-hidden="true" />}
         title="暂无趋势数据"
         desc={analysis.message}
@@ -243,10 +223,6 @@ function renderAnalysis(
     .map((p) => ({ date: p.date, value: p.numeric as number }));
   return (
     <div className="single-series">
-      <Notice
-        warning="同名同类别同单位的已确认记录可比较；连线使用原始数值，未做换算。"
-        tone="ok"
-      />
       <div className="card series-card">
         <h4>
           <Chip tone="ok">
@@ -269,6 +245,14 @@ function renderAnalysis(
           gotoReport={gotoReport}
         />
       </div>
+    </div>
+  );
+}
+
+function TrendEmptyCard({ icon, title, desc }: { icon?: ReactNode; title: string; desc?: string }) {
+  return (
+    <div className="card trend-empty">
+      <EmptyState icon={icon} title={title} desc={desc} />
     </div>
   );
 }

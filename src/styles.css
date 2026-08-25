@@ -802,22 +802,18 @@ body {
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
 }
 
-/* 趋势界面顶部的辅助说明：作为趋势区的正常块级文本，左对齐、不溢出到外层背景 */
-.trend-rule-note {
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
-  color: var(--muted);
-  font-size: 13px;
-  line-height: 1.6;
-  text-align: left;
-  max-width: 100%;
-  overflow-wrap: anywhere;
-  padding: 4px 2px;
+/* 趋势页内容区空态：统一放入卡片内容容器，文字左对齐、正常流布局、移动端不溢出 */
+.trend-empty.card {
+  padding: 16px;
 }
-.trend-rule-note svg {
-  flex-shrink: 0;
-  margin-top: 2px;
+.trend-empty .empty-state {
+  text-align: left;
+  padding: 8px 0;
+}
+.trend-empty .empty-desc {
+  max-width: 100%;
+  margin-left: 0;
+  margin-right: 0;
 }
 
 .single-series {
@@ -1687,10 +1683,6 @@ input:focus-visible,
     flex-direction: column;
     gap: 10px;
   }
-  .trend-rule-note {
-    padding: 8px 10px;
-  }
-
   /* 报告列表：筛选区折叠为「筛选」按钮，展开后显示字段 */
   .report-filter-toggle {
     display: inline-flex;
