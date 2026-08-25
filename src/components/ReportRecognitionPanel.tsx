@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Camera, ScanLine } from 'lucide-react';
 import type { AttachmentRecord, ReportDetail, ReportKind } from '../types';
 import { REPORT_TYPES, LAB_REPORT_TYPES, IMAGING_REPORT_TYPES } from '../types';
 import { ocrStatusText, type OcrProgress } from '../utils/ocr';
@@ -21,7 +22,11 @@ import {
   type RecognizeDebugInfo,
 } from '../utils/recognizeApi';
 import type { OcrCandidate, ReportScanMeta } from '../utils/ocrCandidate';
-import { addCustomReportType, matchTestPurposeToType, loadCustomReportTypes } from '../utils/customReportTypes';
+import {
+  addCustomReportType,
+  matchTestPurposeToType,
+  loadCustomReportTypes,
+} from '../utils/customReportTypes';
 import { cleanFreeText } from '../utils/displayName';
 import { todayISO } from '../utils/dates';
 import type { ItemDraft } from '../utils/labels';
@@ -142,12 +147,19 @@ function rowToCandidate(row: DraftRow): OcrCandidate {
 }
 
 function reportTypeCandidate(reportType: string, reportKind: ReportKind): string {
-  const allowed = reportKind === 'imaging' ? IMAGING_REPORT_TYPES : reportKind === 'lab' ? LAB_REPORT_TYPES : REPORT_TYPES;
+  const allowed =
+    reportKind === 'imaging'
+      ? IMAGING_REPORT_TYPES
+      : reportKind === 'lab'
+        ? LAB_REPORT_TYPES
+        : REPORT_TYPES;
   return (allowed as readonly string[]).includes(reportType) ? reportType : '';
 }
 
 /** 仅从影像子检查部位的明确关键词补充现有预设，不对自由文本作模糊猜测。 */
-function explicitImagingTypesFromExams(exams: Array<{ examPart: string; examMethod: string }> | undefined): string[] {
+function explicitImagingTypesFromExams(
+  exams: Array<{ examPart: string; examMethod: string }> | undefined,
+): string[] {
   const text = (exams ?? []).map((exam) => `${exam.examPart} ${exam.examMethod}`).join('');
   const matched: string[] = [];
   if (text.includes('甲状腺')) matched.push('甲状腺超声');
@@ -300,11 +312,19 @@ export function ReportRecognitionPanel({
   // 初值由向导带回的既有 reportMeta 提供，返回识别页时无需重新识别即可查看。
   const [reportMeta, setReportMeta] = useState<ReportScanMeta>(() => ({
     reportKind: initialReportMeta?.reportKind ?? 'lab',
-    imaging: initialReportMeta?.imaging ?? { examPart: '', examMethod: '', findings: '', impression: '', measurements: '' },
+    imaging: initialReportMeta?.imaging ?? {
+      examPart: '',
+      examMethod: '',
+      findings: '',
+      impression: '',
+      measurements: '',
+    },
     hospital: initialReportMeta?.hospital ?? '',
     reportDate: initialReportMeta?.reportDate ?? '',
     reportType: initialReportMeta?.reportType ?? initialReportMeta?.reportTypes?.[0] ?? '',
-    reportTypes: initialReportMeta?.reportTypes ?? (initialReportMeta?.reportType ? [initialReportMeta.reportType] : []),
+    reportTypes:
+      initialReportMeta?.reportTypes ??
+      (initialReportMeta?.reportType ? [initialReportMeta.reportType] : []),
     testPurpose: initialReportMeta?.testPurpose ?? '',
     title: initialReportMeta?.title ?? '',
     notes: initialReportMeta?.notes ?? '',
@@ -319,7 +339,11 @@ export function ReportRecognitionPanel({
     const rec = await addCustomReportType(raw, [raw], reportMeta.reportKind);
     if (rec) {
       setCustomTypes((prev) => [...prev, rec]);
-      setReportMeta((m) => ({ ...m, reportType: rec.name, reportTypes: [...new Set([...(m.reportTypes ?? []), rec.name])] }));
+      setReportMeta((m) => ({
+        ...m,
+        reportType: rec.name,
+        reportTypes: [...new Set([...(m.reportTypes ?? []), rec.name])],
+      }));
       setAiReportTypeHint('');
       setNewTypeChoice('saved');
       setNewTypeError('');
@@ -341,11 +365,16 @@ export function ReportRecognitionPanel({
   }));
   const [extrasOpen, setExtrasOpen] = useState(false);
   // 用户自定义报告类型（识别 testPurpose 匹配时纳入，仅严格匹配，不自动新增）
-  const [customTypes, setCustomTypes] = useState<{ name: string; aliases: string[]; reportKind?: ReportKind }[]>([]);
+  const [customTypes, setCustomTypes] = useState<
+    { name: string; aliases: string[]; reportKind?: ReportKind }[]
+  >([]);
   useEffect(() => {
     let alive = true;
     loadCustomReportTypes().then((cts) => {
-      if (alive) setCustomTypes(cts.map((c) => ({ name: c.name, aliases: c.aliases, reportKind: c.reportKind })));
+      if (alive)
+        setCustomTypes(
+          cts.map((c) => ({ name: c.name, aliases: c.aliases, reportKind: c.reportKind })),
+        );
     });
     return () => {
       alive = false;
@@ -482,30 +511,40 @@ export function ReportRecognitionPanel({
           : cleanAiStructured(parsed, cleanSentText);
       if (m === 'report') {
         if (cleaned.items.length === 0 && !cleaned.report.hospital && !cleaned.report.reportDate) {
-          const diagnostic = reply.debug?.server && typeof reply.debug.server === 'object'
-            ? (reply.debug.server as { stage?: unknown; errorCode?: unknown }).stage
-            : null;
-          setError(typeof diagnostic === 'string'
-            ? `上游已返回，但${diagnostic === 'response-parse' ? '响应内容无法解析' : '未提取到有效报告字段'}，请重试；也可手动录入检查项。`
-            : '上游已返回，但未提取到有效报告字段，请重试；也可手动录入检查项。');
+          const diagnostic =
+            reply.debug?.server && typeof reply.debug.server === 'object'
+              ? (reply.debug.server as { stage?: unknown; errorCode?: unknown }).stage
+              : null;
+          setError(
+            typeof diagnostic === 'string'
+              ? `上游已返回，但${diagnostic === 'response-parse' ? '响应内容无法解析' : '未提取到有效报告字段'}，请重试；也可手动录入检查项。`
+              : '上游已返回，但未提取到有效报告字段，请重试；也可手动录入检查项。',
+          );
           setPhaseClean('error');
           return;
         }
         setRows(cleaned.items.map((it) => itemToRow(it)));
-        setReportMeta((prev) => ({ ...prev, reportKind: cleaned.report.reportKind as ReportKind, imaging: cleaned.imaging, exams: cleaned.imaging.exams }));
+        setReportMeta((prev) => ({
+          ...prev,
+          reportKind: cleaned.report.reportKind as ReportKind,
+          imaging: cleaned.imaging,
+          exams: cleaned.imaging.exams,
+        }));
         const hospital = cleanFreeText(cleaned.report.hospital);
         const title = cleanFreeText(cleaned.report.title);
         const recognizedKind = cleaned.report.reportKind as ReportKind;
         const cleanedReportTypes = cleaned.report.reportTypes
           .map((t) => reportTypeCandidate(t.trim(), recognizedKind))
           .filter((t): t is string => t !== '');
-        const explicitImagingTypes = recognizedKind === 'imaging' ? explicitImagingTypesFromExams(cleaned.imaging.exams) : [];
+        const explicitImagingTypes =
+          recognizedKind === 'imaging' ? explicitImagingTypesFromExams(cleaned.imaging.exams) : [];
         const mergedReportTypes = [...new Set([...cleanedReportTypes, ...explicitImagingTypes])];
         const rpType = reportTypeCandidate(cleaned.report.reportType.trim(), recognizedKind);
         // testPurpose is display-only metadata for imaging; never infer an imaging report type from it.
-        const purposeType = cleaned.report.reportKind === 'lab'
-          ? matchTestPurposeToType(cleaned.report.testPurpose, customTypes, 'lab')
-          : '';
+        const purposeType =
+          cleaned.report.reportKind === 'lab'
+            ? matchTestPurposeToType(cleaned.report.testPurpose, customTypes, 'lab')
+            : '';
         const dateRaw = cleaned.report.reportDate.trim();
         const dateOk = ISO_DATE_RE.test(dateRaw) ? dateRaw : '';
         setReportMeta((prev) => ({
@@ -521,8 +560,17 @@ export function ReportRecognitionPanel({
             prev.reportDate !== '' && prev.reportDate !== todayISO()
               ? prev.reportDate
               : dateOk || prev.reportDate,
-          reportType: prev.reportType !== '' ? prev.reportType : mergedReportTypes[0] || rpType || purposeType,
-          reportTypes: prev.reportTypes?.length ? prev.reportTypes : (mergedReportTypes.length ? mergedReportTypes : (rpType || purposeType ? [rpType || purposeType] : [])),
+          reportType:
+            prev.reportType !== ''
+              ? prev.reportType
+              : mergedReportTypes[0] || rpType || purposeType,
+          reportTypes: prev.reportTypes?.length
+            ? prev.reportTypes
+            : mergedReportTypes.length
+              ? mergedReportTypes
+              : rpType || purposeType
+                ? [rpType || purposeType]
+                : [],
           // 检验目的是报告结构的固定字段，独立保留（不混入 details/附件信息）
           testPurpose:
             prev.testPurpose !== '' ? prev.testPurpose : cleaned.report.testPurpose.trim(),
@@ -623,7 +671,8 @@ export function ReportRecognitionPanel({
   const enterReview = () => {
     // Returning from review remounts this panel with a seeded draft, so phase is
     // idle even though the completed recognition result is still actionable.
-    if (onReportScan && mode === 'report' && (phase === 'done' || showResults)) onReportScan(buildScan());
+    if (onReportScan && mode === 'report' && (phase === 'done' || showResults))
+      onReportScan(buildScan());
   };
 
   /** 用户显式「采用」推荐标签：已随标签功能移除，此处不再提供。 */
@@ -646,7 +695,10 @@ export function ReportRecognitionPanel({
     scanExtras.notes.length > 0 ||
     scanExtras.unresolvedText !== '' ||
     (scanExtras.report !== null &&
-      REPORT_EXTRA_LABELS.some(([k]) => { const raw = scanExtras.report?.[k]; return typeof raw === 'string' && raw.trim() !== ''; }));
+      REPORT_EXTRA_LABELS.some(([k]) => {
+        const raw = scanExtras.report?.[k];
+        return typeof raw === 'string' && raw.trim() !== '';
+      }));
   // 展示识别结果：识别完成（done），或为向导带回的既有候选（不再要求重新识别才能看到）。
   const showResults = phase === 'done' || rows.length > 0 || hasSeededMeta || hasExtrasContent;
 
@@ -674,7 +726,13 @@ export function ReportRecognitionPanel({
                   setRows([]);
                   setReportMeta({
                     reportKind: 'lab',
-                    imaging: { examPart: '', examMethod: '', findings: '', impression: '', measurements: '' },
+                    imaging: {
+                      examPart: '',
+                      examMethod: '',
+                      findings: '',
+                      impression: '',
+                      measurements: '',
+                    },
                     hospital: '',
                     reportDate: '',
                     reportType: '',
@@ -713,7 +771,7 @@ export function ReportRecognitionPanel({
                 }
                 onClick={() => runOnSelected('report')}
               >
-                🧾 识别整张报告
+                <ScanLine size={18} strokeWidth={2} aria-hidden="true" /> 识别整张报告
               </button>
             )}
             {!reportModeOnly && (
@@ -723,7 +781,7 @@ export function ReportRecognitionPanel({
                 disabled={busy}
                 onClick={() => runOnSelected('items')}
               >
-                📷 仅识别检查项目
+                <Camera size={18} strokeWidth={2} aria-hidden="true" /> 仅识别检查项目
               </button>
             )}
           </div>
@@ -786,14 +844,31 @@ export function ReportRecognitionPanel({
       {showResults && mode === 'report' && autoReportScan && (
         <div className="wizard-summary recog-summary" aria-label="识别结果摘要">
           <strong>识别结果摘要</strong>
-          <p>当前图片「{selectedImage?.name ?? '未选择'}」识别已完成 · 报告大类：{reportMeta.reportKind === 'imaging' ? '影像' : reportMeta.reportKind === 'lab' ? '检验' : '其他'}</p>
-          <p>{reportMeta.reportType ? `识别到的报告类型：${reportMeta.reportType}` : '报告类型：未匹配'}</p>
-          <p>{reportMeta.reportKind === 'imaging' ? `影像子检查：${reportMeta.imaging.exams?.length ?? 0} 项` : `检验项目：${rows.length} 项`}</p>
+          <p>
+            当前图片「{selectedImage?.name ?? '未选择'}」识别已完成 · 报告大类：
+            {reportMeta.reportKind === 'imaging'
+              ? '影像'
+              : reportMeta.reportKind === 'lab'
+                ? '检验'
+                : '其他'}
+          </p>
+          <p>
+            {reportMeta.reportType
+              ? `识别到的报告类型：${reportMeta.reportType}`
+              : '报告类型：未匹配'}
+          </p>
+          <p>
+            {reportMeta.reportKind === 'imaging'
+              ? `影像子检查：${reportMeta.imaging.exams?.length ?? 0} 项`
+              : `检验项目：${rows.length} 项`}
+          </p>
           <p className="dim">报告类型、检验目的/检查项目及具体项目请在下一步核对页编辑。</p>
           <div className="wizard-nav recog-summary-actions" aria-label="步骤2底部操作区">
             <div className="wizard-nav-left" aria-hidden="true" />
             <div className="wizard-nav-right">
-              <button type="button" className="btn btn-primary" onClick={enterReview}>进入核对并保存 →</button>
+              <button type="button" className="btn btn-primary" onClick={enterReview}>
+                进入核对并保存 →
+              </button>
             </div>
           </div>
         </div>
@@ -803,9 +878,7 @@ export function ReportRecognitionPanel({
         <div className="recog-report-meta">
           <div className="att-head">
             <strong>识别出的报告信息（候选）</strong>
-            <small>
-             下一步进入核对页后填入报告表单；可先在上方手填标题/备注。
-            </small>
+            <small>下一步进入核对页后填入报告表单；可先在上方手填标题/备注。</small>
           </div>
           <div className="form-grid">
             <label className="crop-zoom-label">
@@ -842,7 +915,18 @@ export function ReportRecognitionPanel({
                 }}
               >
                 <option value="">（不选择）</option>
-                {(reportMeta.reportKind === 'imaging' ? [...IMAGING_REPORT_TYPES, ...customTypes.filter((c) => c.reportKind === 'imaging').map((c) => c.name)] : reportMeta.reportKind === 'lab' ? [...LAB_REPORT_TYPES, ...customTypes.filter((c) => c.reportKind === 'lab').map((c) => c.name)] : []).map((t) => (
+                {(reportMeta.reportKind === 'imaging'
+                  ? [
+                      ...IMAGING_REPORT_TYPES,
+                      ...customTypes.filter((c) => c.reportKind === 'imaging').map((c) => c.name),
+                    ]
+                  : reportMeta.reportKind === 'lab'
+                    ? [
+                        ...LAB_REPORT_TYPES,
+                        ...customTypes.filter((c) => c.reportKind === 'lab').map((c) => c.name),
+                      ]
+                    : []
+                ).map((t) => (
                   <option key={t} value={t}>
                     {t}
                   </option>
@@ -851,7 +935,15 @@ export function ReportRecognitionPanel({
               {aiReportTypeHint !== '' && (
                 <div className="purpose-suggestion" role="note">
                   <small>识别到的新报告类型：{aiReportTypeHint}</small>
-                  {newTypeChoice === 'pending' && <button type="button" className="btn btn-sm btn-primary" onClick={() => void saveRecognizedType()}>保存为新报告类型</button>}
+                  {newTypeChoice === 'pending' && (
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-primary"
+                      onClick={() => void saveRecognizedType()}
+                    >
+                      保存为新报告类型
+                    </button>
+                  )}
                   {newTypeChoice === 'saved' && <small className="dim">已保存并选中</small>}
                   {newTypeError && <p className="error-text">{newTypeError}</p>}
                 </div>
@@ -862,7 +954,9 @@ export function ReportRecognitionPanel({
               <input
                 value={reportMeta.testPurpose}
                 onChange={(e) => setReportMeta((m) => ({ ...m, testPurpose: e.target.value }))}
-                placeholder={reportMeta.reportKind === 'imaging' ? '如：腹部超声检查' : '如：血常规检查'}
+                placeholder={
+                  reportMeta.reportKind === 'imaging' ? '如：腹部超声检查' : '如：血常规检查'
+                }
               />
             </label>
             <label className="crop-zoom-label">
@@ -882,7 +976,6 @@ export function ReportRecognitionPanel({
               />
             </label>
           </div>
-
         </div>
       )}
 

@@ -1,6 +1,25 @@
 import { useEffect, useMemo, useState } from 'react';
+import {
+  AlertCircle,
+  Check,
+  ClipboardList,
+  FileText,
+  Image as ImageIcon,
+  Paperclip,
+} from 'lucide-react';
 import { db, deleteReportCascade, now } from '../db';
-import { IMAGING_REPORT_TYPES, LAB_REPORT_TYPES, normalizeReportTypes, type AttachmentRecord, type ImagingExam, type ImagingReport, type Member, type Report, type ReportDetail, type ReportItem } from '../types';
+import {
+  IMAGING_REPORT_TYPES,
+  LAB_REPORT_TYPES,
+  normalizeReportTypes,
+  type AttachmentRecord,
+  type ImagingExam,
+  type ImagingReport,
+  type Member,
+  type Report,
+  type ReportDetail,
+  type ReportItem,
+} from '../types';
 import { mergeReportTypes, loadCustomReportTypes } from '../utils/customReportTypes';
 import { Chip, ConfirmButton, EmptyState, Field } from './Kit';
 import { toDisplayDate } from '../utils/dates';
@@ -17,13 +36,15 @@ export interface ReportFilters {
 /** Return distinct imaging sub-exams for the list summary, including legacy data. */
 export function getImagingSummaryExams(imaging: ImagingReport): ImagingExam[] {
   if (imaging.exams && imaging.exams.length > 0) return imaging.exams;
-  return [{
-    examPart: imaging.examPart,
-    examMethod: imaging.examMethod,
-    findings: imaging.findings,
-    impression: imaging.impression,
-    measurements: imaging.measurements,
-  }];
+  return [
+    {
+      examPart: imaging.examPart,
+      examMethod: imaging.examMethod,
+      findings: imaging.findings,
+      impression: imaging.impression,
+      measurements: imaging.measurements,
+    },
+  ];
 }
 
 export function ReportManager({
@@ -87,15 +108,29 @@ export function ReportManager({
 
   const kw = filters.keyword.trim().toLowerCase();
   const reportTypesForKind = useMemo(() => {
-    const source = filters.reportKind === 'imaging' ? IMAGING_REPORT_TYPES : filters.reportKind === 'lab' ? LAB_REPORT_TYPES : allReportTypes;
-    return [...new Set([...source, ...reports.filter((r) => !filters.reportKind || (r.reportKind ?? 'lab') === filters.reportKind).flatMap(normalizeReportTypes)])];
+    const source =
+      filters.reportKind === 'imaging'
+        ? IMAGING_REPORT_TYPES
+        : filters.reportKind === 'lab'
+          ? LAB_REPORT_TYPES
+          : allReportTypes;
+    return [
+      ...new Set([
+        ...source,
+        ...reports
+          .filter((r) => !filters.reportKind || (r.reportKind ?? 'lab') === filters.reportKind)
+          .flatMap(normalizeReportTypes),
+      ]),
+    ];
   }, [allReportTypes, filters.reportKind, reports]);
 
   const visibleReports = useMemo(() => {
     return reports
       .filter((r) => (filters.memberId ? r.memberId === filters.memberId : true))
       .filter((r) => (filters.reportKind ? (r.reportKind ?? 'lab') === filters.reportKind : true))
-      .filter((r) => (filters.reportType ? normalizeReportTypes(r).includes(filters.reportType) : true))
+      .filter((r) =>
+        filters.reportType ? normalizeReportTypes(r).includes(filters.reportType) : true,
+      )
       .filter((r) => (filters.dateFrom ? r.reportDate >= filters.dateFrom : true))
       .filter((r) => (filters.dateTo ? r.reportDate <= filters.dateTo : true))
       .filter((r) => {
@@ -108,13 +143,15 @@ export function ReportManager({
           r.notes,
           r.testPurpose ?? '',
           ...(r.details ?? []).flatMap((d) => [d.label, d.value]),
-          ...(r.imaging ? getImagingSummaryExams(r.imaging).flatMap((exam) => [
-            exam.examPart,
-            exam.examMethod,
-            exam.findings,
-            exam.impression,
-            exam.measurements,
-          ]) : []),
+          ...(r.imaging
+            ? getImagingSummaryExams(r.imaging).flatMap((exam) => [
+                exam.examPart,
+                exam.examMethod,
+                exam.findings,
+                exam.impression,
+                exam.measurements,
+              ])
+            : []),
           ...(itemsByReport.get(r.id) ?? []).flatMap((it) => [
             it.name,
             it.standardLabel ?? '',
@@ -172,7 +209,13 @@ export function ReportManager({
             <Field label="报告大类">
               <select
                 value={filters.reportKind}
-                onChange={(e) => setFilters((f) => ({ ...f, reportKind: e.target.value as ReportFilters['reportKind'], reportType: '' }))}
+                onChange={(e) =>
+                  setFilters((f) => ({
+                    ...f,
+                    reportKind: e.target.value as ReportFilters['reportKind'],
+                    reportType: '',
+                  }))
+                }
               >
                 <option value="">全部大类</option>
                 <option value="lab">检验</option>
@@ -220,7 +263,14 @@ export function ReportManager({
                 className="btn btn-ghost btn-sm"
                 style={{ alignSelf: 'flex-end' }}
                 onClick={() =>
-                  setFilters({ memberId: '', keyword: '', reportType: '', reportKind: '', dateFrom: '', dateTo: '' })
+                  setFilters({
+                    memberId: '',
+                    keyword: '',
+                    reportType: '',
+                    reportKind: '',
+                    dateFrom: '',
+                    dateTo: '',
+                  })
                 }
               >
                 清除筛选（{activeFilterCount}）
@@ -241,7 +291,7 @@ export function ReportManager({
 
       {visibleReports.length === 0 ? (
         <EmptyState
-          icon="📄"
+          icon={<FileText size={40} strokeWidth={1.5} aria-hidden="true" />}
           title={reports.length === 0 ? '还没有体检报告' : '没有符合筛选条件的报告'}
           desc={
             reports.length === 0
@@ -255,7 +305,20 @@ export function ReportManager({
               </button>
             ) : (
               <div className="btn-row">
-                <button type="button" className="btn btn-ghost" onClick={() => setFilters({ memberId: '', keyword: '', reportType: '', reportKind: '', dateFrom: '', dateTo: '' })}>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() =>
+                    setFilters({
+                      memberId: '',
+                      keyword: '',
+                      reportType: '',
+                      reportKind: '',
+                      dateFrom: '',
+                      dateTo: '',
+                    })
+                  }
+                >
                   清除筛选
                 </button>
                 <button type="button" className="btn btn-primary" onClick={onCreate}>
@@ -292,7 +355,15 @@ export function ReportManager({
                         <span className="member-tag member-tag-missing">成员缺失</span>
                       )}
                       <Chip tone="info">{r.reportKind === 'imaging' ? '检查' : '检验'}</Chip>
-                      {normalizeReportTypes(r).length > 0 ? normalizeReportTypes(r).map((t) => <Chip key={t} tone="info">{t}</Chip>) : <Chip tone="info">未分类</Chip>}
+                      {normalizeReportTypes(r).length > 0 ? (
+                        normalizeReportTypes(r).map((t) => (
+                          <Chip key={t} tone="info">
+                            {t}
+                          </Chip>
+                        ))
+                      ) : (
+                        <Chip tone="info">未分类</Chip>
+                      )}
                       {pendingCount > 0 && <Chip tone="warn">{pendingCount} 项待确认</Chip>}
                     </div>
                     <div className="member-meta">
@@ -329,12 +400,26 @@ export function ReportManager({
                   <div className="report-imaging-summary">
                     {imagingExams.map((exam, index) => (
                       <div className="report-imaging-exam" key={`${r.id}-imaging-${index}`}>
-                        {imagingExams.length > 1 && <strong>子检查 {index + 1}<br /></strong>}
-                        <strong>检查部位：</strong>{exam.examPart || '—'}<br />
-                        <strong>检查方法：</strong>{exam.examMethod || '—'}<br />
-                        <strong>测量值：</strong>{exam.measurements.trim() || '未识别到测量值，可手动补充'}<br />
-                        <strong>影像所见：</strong>{exam.findings || '—'}<br />
-                        <strong>结论：</strong>{exam.impression || '—'}
+                        {imagingExams.length > 1 && (
+                          <strong>
+                            子检查 {index + 1}
+                            <br />
+                          </strong>
+                        )}
+                        <strong>检查部位：</strong>
+                        {exam.examPart || '—'}
+                        <br />
+                        <strong>检查方法：</strong>
+                        {exam.examMethod || '—'}
+                        <br />
+                        <strong>测量值：</strong>
+                        {exam.measurements.trim() || '未识别到测量值，可手动补充'}
+                        <br />
+                        <strong>影像所见：</strong>
+                        {exam.findings || '—'}
+                        <br />
+                        <strong>结论：</strong>
+                        {exam.impression || '—'}
                       </div>
                     ))}
                   </div>
@@ -429,7 +514,15 @@ function ReportCardItems({
                       onClick={() => void toggleConfirm(it)}
                       title="点击切换已确认/待确认"
                     >
-                      {it.confirmed ? '✓ 已确认' : '！待确认'}
+                      {it.confirmed ? (
+                        <>
+                          <Check size={14} strokeWidth={2} aria-hidden="true" /> 已确认
+                        </>
+                      ) : (
+                        <>
+                          <AlertCircle size={14} strokeWidth={2} aria-hidden="true" /> 待确认
+                        </>
+                      )}
                     </button>
                   </td>
                   <td>{it.name}</td>
@@ -463,7 +556,10 @@ function ReportDetails({ details }: { details: ReportDetail[] }) {
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
       >
-        <span>📋 报告详情（{nonEmpty.length} 项：送检医生 / 检验者 / 审核者等附加信息）</span>
+        <strong className="details-linear">
+          <ClipboardList size={16} strokeWidth={1.8} aria-hidden="true" /> 报告详情（
+          {nonEmpty.length} 项：送检医生 / 检验者 / 审核者等附加信息）
+        </strong>
         <span className="dim">{open ? '▴' : '▾'}</span>
       </button>
       {open && (
@@ -496,7 +592,14 @@ function AttachmentChip({ att }: { att: AttachmentRecord }) {
     if (url) window.open(url, att.kind === 'image' ? '_blank' : '_blank');
   };
 
-  const label = att.kind === 'image' ? '🖼️' : att.kind === 'pdf' ? '📄' : '📎';
+  const kindIcon =
+    att.kind === 'image' ? (
+      <ImageIcon size={15} strokeWidth={1.8} aria-hidden="true" />
+    ) : att.kind === 'pdf' ? (
+      <FileText size={15} strokeWidth={1.8} aria-hidden="true" />
+    ) : (
+      <Paperclip size={15} strokeWidth={1.8} aria-hidden="true" />
+    );
   return (
     <button
       type="button"
@@ -504,7 +607,7 @@ function AttachmentChip({ att }: { att: AttachmentRecord }) {
       onClick={open}
       title={`打开附件 ${att.name}（新窗口）`}
     >
-      {label} {att.name}
+      {kindIcon} {att.name}
       {(att.size / 1024).toFixed(0)}KB
     </button>
   );

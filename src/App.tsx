@@ -1,6 +1,18 @@
 import { useCallback, useEffect, useState } from 'react';
+import type { ReactNode } from 'react';
+import {
+  Activity,
+  Database,
+  FileText,
+  FlaskConical,
+  Home,
+  Image as ImageIcon,
+  TrendingUp,
+  Users,
+} from 'lucide-react';
 import { db } from './db';
 import type { Member, Report } from './types';
+import type { LucideIcon } from 'lucide-react';
 import { Disclaimer } from './components/Kit';
 import { MemberManager } from './components/MemberManager';
 import { ReportManager } from './components/ReportManager';
@@ -13,12 +25,12 @@ import { toDisplayDate } from './utils/dates';
 
 type Tab = 'overview' | 'members' | 'reports' | 'trend' | 'data';
 
-const TABS: { key: Tab; label: string; icon: string }[] = [
-  { key: 'overview', label: '概览', icon: '🏠' },
-  { key: 'members', label: '成员', icon: '👥' },
-  { key: 'reports', label: '报告', icon: '📄' },
-  { key: 'trend', label: '趋势', icon: '📈' },
-  { key: 'data', label: '数据', icon: '💾' },
+const TABS: { key: Tab; label: string; icon: LucideIcon }[] = [
+  { key: 'overview', label: '概览', icon: Home },
+  { key: 'members', label: '成员', icon: Users },
+  { key: 'reports', label: '报告', icon: FileText },
+  { key: 'trend', label: '趋势', icon: TrendingUp },
+  { key: 'data', label: '数据', icon: Database },
 ];
 
 export default function App() {
@@ -73,28 +85,36 @@ export default function App() {
     <div className="app">
       <header className="app-header">
         <div className="app-title">
-          <span className="logo">🩺</span>
+          <span className="logo">
+            <Activity size={26} strokeWidth={1.8} aria-hidden="true" />
+          </span>
           <div>
             <h1>家庭体检档案</h1>
             <span className="local-badge">本地存储 · 无账号 · 离线可用</span>
           </div>
         </div>
-        <nav className="tab-nav">
-          {TABS.map((t) => (
-            <button
-              key={t.key}
-              type="button"
-              className={`tab-btn ${tab === t.key ? 'tab-active' : ''}`}
-              onClick={() => {
-                setTab(t.key);
-                setEditingReport(null);
-                setCreatingReport(false);
-              }}
-            >
-              <span className="tab-icon">{t.icon}</span>
-              <span>{t.label}</span>
-            </button>
-          ))}
+        <nav className="tab-nav" aria-label="主导航">
+          {TABS.map((t) => {
+            const Icon = t.icon;
+            return (
+              <button
+                key={t.key}
+                type="button"
+                className={`tab-btn ${tab === t.key ? 'tab-active' : ''}`}
+                aria-current={tab === t.key ? 'page' : undefined}
+                onClick={() => {
+                  setTab(t.key);
+                  setEditingReport(null);
+                  setCreatingReport(false);
+                }}
+              >
+                <span className="tab-icon">
+                  <Icon size={17} strokeWidth={1.8} aria-hidden="true" />
+                </span>
+                <span>{t.label}</span>
+              </button>
+            );
+          })}
         </nav>
       </header>
 
@@ -215,25 +235,25 @@ function Overview({
         <StatCard
           label="家庭成员"
           value={stats.members}
-          icon="👥"
+          icon={<Users size={22} strokeWidth={1.8} aria-hidden="true" />}
           onClick={() => onGoto('members')}
         />
         <StatCard
           label="体检报告"
           value={stats.reports}
-          icon="📄"
+          icon={<FileText size={22} strokeWidth={1.8} aria-hidden="true" />}
           onClick={() => onGoto('reports')}
         />
         <StatCard
           label="检查条目"
           value={stats.items}
-          icon="🧪"
+          icon={<FlaskConical size={22} strokeWidth={1.8} aria-hidden="true" />}
           onClick={() => onGoto('reports')}
         />
         <StatCard
           label="附件（图/PDF）"
           value={stats.attachments}
-          icon="🖼️"
+          icon={<ImageIcon size={22} strokeWidth={1.8} aria-hidden="true" />}
           onClick={() => onGoto('reports')}
         />
       </div>
@@ -251,7 +271,9 @@ function Overview({
               在「报告」中为成员新建体检报告，上传原始图片/PDF 附件，点击「识别数据」自动录入，
               或在同一界面手动逐项添加/修改/删除检查项，并逐项核对确认；
             </li>
-            <li>在「趋势」中查看同一成员、同名同类别且单位一致的已确认指标变化；标准标签仅作兼容保留，不影响趋势；</li>
+            <li>
+              在「趋势」中查看同一成员、同名同类别且单位一致的已确认指标变化；标准标签仅作兼容保留，不影响趋势；
+            </li>
             <li>在「数据」中随时导出/导入完整 JSON 备份（含附件），也可载入示例数据体验。</li>
           </ol>
           <div className="btn-row">
@@ -259,7 +281,7 @@ function Overview({
               + 新建第一份报告
             </button>
             <button type="button" className="btn" onClick={() => onGoto('data')}>
-              🧪 载入示例数据
+              <FlaskConical size={16} strokeWidth={1.8} aria-hidden="true" /> 载入示例数据
             </button>
           </div>
         </div>
@@ -299,7 +321,7 @@ function StatCard({
 }: {
   label: string;
   value: number;
-  icon: string;
+  icon: ReactNode;
   onClick: () => void;
 }) {
   return (

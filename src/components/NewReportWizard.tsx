@@ -1,4 +1,15 @@
 import { useMemo, useRef, useState } from 'react';
+import {
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  ChevronRight,
+  FileText,
+  Image as ImageIcon,
+  Keyboard,
+  Paperclip,
+  ScanLine,
+} from 'lucide-react';
 import type { AttachmentRecord, Member, ReportDetail } from '../types';
 import { now, uid } from '../db';
 import { ageByBirthDate } from '../utils/dates';
@@ -196,21 +207,27 @@ export function NewReportWizard({
     const incoming = scan.items.map(ocrCandidateToDraft);
     setRecognizedItems((prev) => {
       const seen = new Set(prev.map((item) => JSON.stringify(item)));
-      return [...prev, ...incoming.filter((item) => {
-        const key = JSON.stringify(item);
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      })];
+      return [
+        ...prev,
+        ...incoming.filter((item) => {
+          const key = JSON.stringify(item);
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        }),
+      ];
     });
     setRecognizedDetails((prev) => {
       const seen = new Set(prev.map((detail) => JSON.stringify(detail)));
-      return [...prev, ...scan.details.filter((detail) => {
-        const key = JSON.stringify(detail);
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      })];
+      return [
+        ...prev,
+        ...scan.details.filter((detail) => {
+          const key = JSON.stringify(detail);
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        }),
+      ];
     });
     setRecognizedReportMeta(scan.report);
     setError('');
@@ -259,7 +276,11 @@ export function NewReportWizard({
                         {m.birthDate ? ` · ${ageByBirthDate(m.birthDate) ?? '?'}岁` : ''}
                       </span>
                     </span>
-                    {memberId === m.id && <span className="member-pick-check">✓</span>}
+                    {memberId === m.id && (
+                      <span className="member-pick-check" aria-hidden="true">
+                        <Check size={16} strokeWidth={2.2} />
+                      </span>
+                    )}
                   </button>
                 ))}
               </div>
@@ -280,17 +301,21 @@ export function NewReportWizard({
               className="entry-primary entry-primary-main"
               onClick={() => setSheetOpen(true)}
             >
-              <span className="entry-icon">📷</span>
+              <span className="entry-icon">
+                <ScanLine size={30} strokeWidth={1.6} aria-hidden="true" />
+              </span>
               <span className="entry-text">
                 <strong>扫描报告</strong>
                 <small>拍摄或从相册选择报告图片 / PDF</small>
               </span>
               <span className="entry-chevron" aria-hidden="true">
-                ›
+                <ChevronRight size={22} strokeWidth={2} />
               </span>
             </button>
             <button type="button" className="entry-secondary" onClick={chooseManual}>
-              <span className="entry-icon">⌨️</span>
+              <span className="entry-icon">
+                <Keyboard size={30} strokeWidth={1.6} aria-hidden="true" />
+              </span>
               <span className="entry-text">
                 <strong>手动录入</strong>
                 <small>不拍照，直接填写（跳过识别）</small>
@@ -352,7 +377,14 @@ export function NewReportWizard({
                 {attachments.map((a) => (
                   <li key={a.id} className="att-manage-item">
                     <span className="att-manage-name" title={a.name}>
-                      {a.kind === 'image' ? '🖼️' : a.kind === 'pdf' ? '📄' : '📎'} {a.name}
+                      {a.kind === 'image' ? (
+                        <ImageIcon size={15} strokeWidth={1.8} aria-hidden="true" />
+                      ) : a.kind === 'pdf' ? (
+                        <FileText size={15} strokeWidth={1.8} aria-hidden="true" />
+                      ) : (
+                        <Paperclip size={15} strokeWidth={1.8} aria-hidden="true" />
+                      )}{' '}
+                      {a.name}
                     </span>
                     <button
                       type="button"
@@ -373,7 +405,7 @@ export function NewReportWizard({
                   className="btn btn-primary"
                   onClick={() => setAddPhase('recognition')}
                 >
-                  → 继续识别整张报告
+                  <ArrowRight size={16} strokeWidth={2} aria-hidden="true" /> 继续识别整张报告
                 </button>
               )}
             </div>
@@ -385,7 +417,8 @@ export function NewReportWizard({
         <section className="wizard-pane" aria-label="步骤2b：自动识别">
           <h3>识别整张报告</h3>
           <p className="dim">
-            已选择 {attachments.length} 个附件（含 {images.length} 张图片）。当前链路只识别所选图片，不会合并多张图片；结果全部为
+            已选择 {attachments.length} 个附件（含 {images.length}{' '}
+            张图片）。当前链路只识别所选图片，不会合并多张图片；结果全部为
             <b>待确认候选</b>，不会自动写入标准标签或进入趋势。
           </p>
           {manualMode ? (
@@ -427,8 +460,8 @@ export function NewReportWizard({
                 取消
               </button>
             ) : step === 2 && addPhase === 'source' ? (
-              <button type="button" className="btn btn-ghost" onClick={backToMember}>
-                ← 返回上一步
+              <button type="button" className="btn btn-ghost" onClick={() => backToMember}>
+                <ArrowLeft size={16} strokeWidth={2} aria-hidden="true" /> 返回上一步
               </button>
             ) : (
               <button
@@ -437,7 +470,7 @@ export function NewReportWizard({
                 onClick={() => backToRecognition()}
                 disabled={recognitionBusy}
               >
-                ← 返回上一步
+                <ArrowLeft size={16} strokeWidth={2} aria-hidden="true" /> 返回上一步
               </button>
             )}
           </div>
@@ -454,7 +487,7 @@ export function NewReportWizard({
                 disabled={!memberId}
                 onClick={() => setStep(2)}
               >
-                下一步 →
+                下一步 <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
               </button>
             )}
             {step === 2 && addPhase === 'recognition' && !manualMode && recognitionBusy && (

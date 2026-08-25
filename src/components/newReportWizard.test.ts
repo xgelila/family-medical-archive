@@ -30,13 +30,13 @@ const styles = readFileSync(join(root, 'src', 'styles.css'), 'utf-8');
 // 识别面板主按钮在识别进行中（reading/structuring）必须禁用，避免并发 run()
 describe('ReportRecognitionPanel：识别进行中禁用主按钮', () => {
   it('「🧾 识别整张报告」主按钮在 busy（reading/structuring）时也禁用', () => {
-    expect(panel).toContain('🧾 识别整张报告');
+    expect(panel).toContain('识别整张报告');
     expect(panel).toContain('disabled={!memberSelected || busy}');
     expect(panel).toContain("const busy = phase === 'reading' || phase === 'structuring';");
   });
 
   it('「仅识别检查项目」按钮在 busy 时同样禁用', () => {
-    expect(panel).toContain('📷 仅识别检查项目');
+    expect(panel).toContain('仅识别检查项目');
     expect(panel).toContain('disabled={busy}');
   });
 });
@@ -104,7 +104,7 @@ describe('新建报告向导：选图后原图直接进入附件预览与识别�
   it('识别 CTA 不挂编辑器：识别整张报告直接对已选附件 Blob 调 run，而非打开裁剪浮窗', () => {
     // 识别主按钮调用 runOnSelected('report')，面板内不再渲染任何 ImageCropModal / 裁剪浮窗
     expect(panel).toContain("runOnSelected('report')");
-    expect(panel).toContain('🧾 识别整张报告');
+    expect(panel).toContain('识别整张报告');
     expect(panel).not.toContain('ImageCropModal');
     expect(panel).not.toContain('openCrop');
     expect(panel).not.toContain('setCropOpen');
@@ -180,7 +180,7 @@ describe('新建报告向导：识别 CTA 唯一醒目 + 成功后停留识别�
     expect(wizard).toContain('onReportScan={onReportScan}');
     expect(wizard).toContain("setRecogPhase('done')");
     // CTA 调用 onReportScan 后必须推进父向导，否则按钮点击无可见效果。
-    expect(wizard).toContain("setStep(3);\n  };");
+    expect(wizard).toContain('setStep(3);\n  };');
     expect(panel).toContain('进入核对并保存');
     expect(wizard).not.toContain('创建报告并添加已选项目');
   });

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Users } from 'lucide-react';
 import { db, deleteMemberCascade, now, uid } from '../db';
 import { EMPTY_MEMBER, type Member } from '../types';
 import { ageByBirthDate, formatTimestamp } from '../utils/dates';
@@ -73,7 +74,11 @@ export function MemberManager({ refreshKey, bump }: { refreshKey: number; bump: 
         </button>
       }
     >
-      {deleteError && <div className="notice notice-err" role="alert">{deleteError}</div>}
+      {deleteError && (
+        <div className="notice notice-err" role="alert">
+          {deleteError}
+        </div>
+      )}
       {formOpen && (
         <MemberForm
           initial={editing ?? EMPTY_MEMBER}
@@ -83,7 +88,7 @@ export function MemberManager({ refreshKey, bump }: { refreshKey: number; bump: 
       )}
       {members.length === 0 && !formOpen ? (
         <EmptyState
-          icon="👨‍👩‍👧‍👦"
+          icon={<Users size={40} strokeWidth={1.5} aria-hidden="true" />}
           title="还没有家庭成员"
           desc="先添加家庭成员（如本人、配偶、父母、子女），再为其创建体检报告。"
           action={

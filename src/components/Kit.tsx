@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { FileText } from 'lucide-react';
 
 /** 全局提示条：本地存储 + 识别结果核对 + 非医疗诊断边界 */
 export function Disclaimer() {
@@ -15,12 +16,12 @@ export function Disclaimer() {
 }
 
 export function EmptyState({
-  icon = '🗂️',
+  icon = <FileText size={40} strokeWidth={1.5} aria-hidden="true" />,
   title,
   desc,
   action,
 }: {
-  icon?: string;
+  icon?: ReactNode;
   title: string;
   desc?: string;
   action?: ReactNode;
