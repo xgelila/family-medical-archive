@@ -163,6 +163,7 @@ export function TrendView({
         <TrendEmptyCard
           icon={<TrendingUp size={40} strokeWidth={1.5} aria-hidden="true" />}
           title="选择成员与检查项目"
+          desc="仅同名同类别同单位的已确认数值会连线；名称或单位不同会分开展示，绝不自动换算。"
         />
       ) : (
         <>
