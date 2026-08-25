@@ -208,11 +208,31 @@ function extractContent(payload: unknown): string | null {
     const direct = (payload as { content?: unknown }).content;
     if (typeof direct === 'string' && direct !== '') return direct;
   }
-  // 兼容旧式上游完整 choices 响应（平滑过渡，不因响应形状差异失败）
+  // 兼容旧式上游完整 choices 响应及 DeepSeek multipart/reasoning/tool 形状。
   const choices = (payload as { choices?: unknown } | null)?.choices;
   if (!Array.isArray(choices) || choices.length === 0) return null;
-  const content = (choices[0] as { message?: { content?: unknown } } | null)?.message?.content;
-  return typeof content === 'string' && content !== '' ? content : null;
+  const message = (choices[0] as { message?: Record<string, unknown> } | null)?.message;
+  if (!message) return null;
+  const textPart = (value: unknown): string => {
+    if (typeof value === 'string') return value;
+    if (!Array.isArray(value)) return '';
+    return value.map((part) => {
+      if (typeof part === 'string') return part;
+      if (!part || typeof part !== 'object') return '';
+      const record = part as Record<string, unknown>;
+      return typeof record.text === 'string' ? record.text : typeof record.content === 'string' ? record.content : '';
+    }).filter(Boolean).join('');
+  };
+  for (const value of [message.content, message.reasoning_content]) {
+    const text = textPart(value);
+    if (text.trim()) return text;
+  }
+  const calls = Array.isArray(message.tool_calls) ? message.tool_calls : [];
+  for (const call of calls) {
+    const args = (call as { function?: { arguments?: unknown } })?.function?.arguments;
+    if (typeof args === 'string' && args.trim()) return args;
+  }
+  return null;
 }
 
 /**

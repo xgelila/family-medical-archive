@@ -3,7 +3,9 @@ const DEFAULT_ENDPOINT = 'https://api.deepseek.com/chat/completions';
 const FIXED_AUTH_HEADER = 'Authorization';
 const FIXED_AUTH_SCHEME = 'Bearer';
 const FIXED_MODEL = 'deepseek-v4-flash';
-const SYSTEM_PROMPT = '从文字中识别检查报告并只输出 JSON，不要输出 Markdown 或说明。只做结构整理，不做医学判断、单位换算、诊断或建议。固定 schema：{"report":{},"imaging":{"examPart":"","examMethod":"","findings":"","impression":"","measurements":"","exams":[]},"items":[],"extraFields":[],"notes":[],"unresolvedText":""}。原文无法可靠归类时保留在 unresolvedText；字段值逐字摘录，不得猜测或改写。';
+// Keep this prompt in lockstep with api/recognize-service.ts and the shared
+// structure schema: Vercel's CommonJS loader cannot import the TS source.
+const SYSTEM_PROMPT = '从文字中识别出检查报告的所有信息和检查项目，生成结构化数据。只做结构整理，不做任何医学判断、不做单位换算、不做诊断或建议。只输出一个 JSON 对象，不要输出 Markdown 代码块或说明，不要新增或删除 key。固定 schema：{"report":{"reportKind":"","hospital":"","branch":"","reportNo":"","personName":"","gender":"","age":"","patientId":"","clinicalDiagnosis":"","testPurpose":"","reportDate":"","reportType":"","reportTypes":[],"title":"","sampleDate":"","receiveDate":"","printDate":"","senderDoctor":"","inspector":"","reviewer":""},"imaging":{"examPart":"","examMethod":"","findings":"","impression":"","measurements":"","exams":[{"examPart":"","examMethod":"","findings":"","impression":"","measurements":""}]},"items":[{"name":"","result":"","referenceRange":"","unit":"","method":"","sourceText":""}],"extraFields":[{"section":"header|footer|other","key":"","value":"","sourceText":""}],"notes":[{"text":"","sourceText":""}],"unresolvedText":""}。字段值逐字摘录；无法可靠归类时保留在 unresolvedText，不得猜测、改写、换算或丢弃。';
 
 function endpoint(value) {
   const v = String(value || '').trim().replace(/\/+$/, '');
@@ -30,6 +32,34 @@ function responseError(res, status, message, code, id, stage, context) {
   console.error(`[recognize-report] ${id} ${code} status=${status} upstreamAttempted=${Boolean(safeContext.upstreamAttempted)} keyPresent=${Boolean(safeContext.key)}${safeContext.key ? ` keyFingerprint=${keyFingerprint(safeContext.key)}` : ''}${safeContext.upstreamAttempted ? ` endpointHost=api.deepseek.com model=${FIXED_MODEL} authHeader=${FIXED_AUTH_HEADER} scheme=${FIXED_AUTH_SCHEME}` : ''}`);
   return res.status(status).json({ error: { ...diagnostic, status, code }, ...diagnostic });
 }
+function extractTextPart(value) {
+  if (typeof value === 'string') return value;
+  if (!Array.isArray(value)) return '';
+  return value.map((part) => {
+    if (typeof part === 'string') return part;
+    if (!part || typeof part !== 'object') return '';
+    return typeof part.text === 'string' ? part.text : typeof part.content === 'string' ? part.content : '';
+  }).filter(Boolean).join('');
+}
+
+// DeepSeek-compatible responses may use string/parts content, reasoning_content,
+// or tool-call arguments. Prefer the actual answer and never log its contents.
+function extractModelContent(payload) {
+  const choice = payload && Array.isArray(payload.choices) ? payload.choices[0] : null;
+  const message = choice && choice.message;
+  if (!message || typeof message !== 'object') return null;
+  const content = extractTextPart(message.content);
+  if (content.trim()) return content;
+  const reasoning = extractTextPart(message.reasoning_content);
+  if (reasoning.trim()) return reasoning;
+  const calls = Array.isArray(message.tool_calls) ? message.tool_calls : [];
+  for (const call of calls) {
+    const args = call && call.function && call.function.arguments;
+    if (typeof args === 'string' && args.trim()) return args;
+  }
+  return null;
+}
+
 function errorMessage(status) {
   if (status === 401 || status === 403) return '服务端密钥被上游拒绝，请稍后重试。';
   if (status === 429) return '请求过于频繁，请稍后重试。';
@@ -61,8 +91,8 @@ module.exports = async function handler(req, res) {
       const upstream = await fetch(target, { method: 'POST', signal: controller.signal, headers: { 'content-type': 'application/json', accept: 'application/json', [FIXED_AUTH_HEADER]: `${FIXED_AUTH_SCHEME} ${key}` }, body: JSON.stringify({ model, messages: [{ role: 'system', content: `${SYSTEM_PROMPT}\\n重点：识别${body.mode === 'report' ? '整张报告' : '检查项目'}。` }, { role: 'user', content: body.text }], temperature: 0, thinking: { type: 'disabled' } }) });
       if (!upstream.ok) return responseError(res, upstream.status >= 400 && upstream.status < 600 ? upstream.status : 502, errorMessage(upstream.status), `UPSTREAM_HTTP_${upstream.status}`, id, 'upstream-request', { upstreamAttempted: true, key });
       const payload = await upstream.json();
-      const content = payload && Array.isArray(payload.choices) && payload.choices[0] && payload.choices[0].message && payload.choices[0].message.content;
-      return typeof content === 'string' && content ? res.status(200).json({ content }) : responseError(res, 502, '识别结果整理失败，请重试。', 'UPSTREAM_INVALID_RESPONSE', id, 'response-parse');
+      const content = extractModelContent(payload);
+      return content ? res.status(200).json({ content }) : responseError(res, 502, '上游已响应但未返回可解析的识别内容，请重试。', 'UPSTREAM_INVALID_RESPONSE', id, 'response-parse', { upstreamAttempted: true, key });
     } catch (e) {
       return responseError(res, controller.signal.aborted ? 504 : 502, errorMessage(controller.signal.aborted ? 504 : 502), controller.signal.aborted ? 'UPSTREAM_TIMEOUT' : 'UPSTREAM_CONNECTION_ERROR', id, 'upstream-request', { upstreamAttempted: true, key });
     } finally { clearTimeout(timer); }

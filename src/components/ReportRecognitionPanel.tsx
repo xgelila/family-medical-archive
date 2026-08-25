@@ -482,7 +482,12 @@ export function ReportRecognitionPanel({
           : cleanAiStructured(parsed, cleanSentText);
       if (m === 'report') {
         if (cleaned.items.length === 0 && !cleaned.report.hospital && !cleaned.report.reportDate) {
-          setError('未能识别出报告信息或检查项目，请重试；也可手动录入检查项。');
+          const diagnostic = reply.debug?.server && typeof reply.debug.server === 'object'
+            ? (reply.debug.server as { stage?: unknown; errorCode?: unknown }).stage
+            : null;
+          setError(typeof diagnostic === 'string'
+            ? `上游已返回，但${diagnostic === 'response-parse' ? '响应内容无法解析' : '未提取到有效报告字段'}，请重试；也可手动录入检查项。`
+            : '上游已返回，但未提取到有效报告字段，请重试；也可手动录入检查项。');
           setPhaseClean('error');
           return;
         }
