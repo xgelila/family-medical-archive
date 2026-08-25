@@ -32,6 +32,7 @@ import { todayISO } from '../utils/dates';
 import {
   AlertCircle,
   ArrowLeft,
+  ArrowRight,
   Check,
   ChevronDown,
   ChevronUp,
@@ -101,7 +102,8 @@ export function ReportReview({
   const updateExam = (index: number, patch: Partial<NonNullable<ImagingReport['exams']>[number]>) => setImaging((v) => ({ ...v, exams: (v.exams ?? imagingExams).map((e, i) => i === index ? { ...e, ...patch } : e) }));
   const addExam = () => setImaging((v) => ({ ...v, exams: [...(v.exams ?? imagingExams), { examPart: '', examMethod: '', findings: '', impression: '', measurements: '' }] }));
   const removeExam = (index: number) => setImaging((v) => ({ ...v, exams: (v.exams ?? imagingExams).filter((_, i) => i !== index) }));
-  const [memberId, setMemberId] = useState(editingReport?.memberId ?? initialMemberId);
+  const [memberId] = useState(editingReport?.memberId ?? initialMemberId);
+  const memberName = members.find((m) => m.id === memberId)?.name ?? '';
   const [hospital, setHospital] = useState(
     editingReport?.hospital ?? initialReportMeta?.hospital ?? '',
   );
@@ -117,7 +119,7 @@ export function ReportReview({
   const [testPurpose, setTestPurpose] = useState(
     editingReport?.testPurpose ?? initialReportMeta?.testPurpose ?? '',
   );
-  const [title, setTitle] = useState(editingReport?.title ?? initialReportMeta?.title ?? '');
+  const [title] = useState(editingReport?.title ?? initialReportMeta?.title ?? '');
   const [notes, setNotes] = useState(editingReport?.notes ?? initialReportMeta?.notes ?? '');
   const [details, setDetails] = useState<ReportDetail[]>(
     editingReport?.details ?? initialDetails ?? [],
@@ -127,6 +129,8 @@ export function ReportReview({
     editingReport ? [] : initialAttachments,
   );
   const [detailsOpen, setDetailsOpen] = useState(false);
+  // 第三步拆成两个连续页面：报告信息（info）→ 核对检查项目（items），移动端优先。
+  const [view, setView] = useState<'info' | 'items'>('info');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   // 编辑模式：既有项目/附件异步加载状态（P0 防覆盖竞态）。新建模式无需加载。
@@ -273,6 +277,28 @@ export function ReportReview({
   const canSave = fieldsReady && editReady;
   const pendingCount = pendingItemCount(items);
 
+  // 「报告信息页」返回上一步：把当前草稿带回识别摘要页（识别摘要→报告信息→核对项目，草稿都不丢失）。
+  const handleBack = () => {
+    onBack?.({
+      memberId,
+      reportMeta: {
+        reportKind,
+        imaging: reportKind === 'imaging'
+          ? { ...imaging, ...(imagingExams.length ? { exams: imagingExams } : {}) }
+          : { examPart: '', examMethod: '', findings: '', impression: '', measurements: '' },
+        hospital,
+        reportDate,
+        reportType,
+        reportTypes,
+        testPurpose,
+        title,
+        notes,
+      },
+      items,
+      details,
+    });
+  };
+
   const scrollToPending = () => {
     const el = document.querySelector('[data-item-pending="true"]');
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -394,7 +420,7 @@ export function ReportReview({
             </button>
           </div>
         )}
-        {pendingCount > 0 && reportKind === 'lab' && (
+        {view === 'items' && pendingCount > 0 && reportKind === 'lab' && (
           <div className="pending-bar">
             <span className="chip chip-warn">{pendingCount} 项待确认</span>
             <button type="button" className="btn btn-sm" onClick={scrollToPending}>
@@ -404,16 +430,11 @@ export function ReportReview({
         )}
       </div>
 
+      {view === 'info' && (
+        <div className="review-info-page">
       <div className="form-grid">
-        <Field label="成员 *">
-          <select value={memberId} onChange={(e) => setMemberId(e.target.value)}>
-            <option value="">请选择成员</option>
-            {members.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.name}
-              </option>
-            ))}
-          </select>
+        <Field label="成员">
+          <div className="member-display">{memberName || '未选择成员'}</div>
         </Field>
         <Field label="报告大类">
           <select value={reportKind} onChange={(e) => setReportKind(e.target.value as ReportKind)}>
@@ -459,17 +480,21 @@ export function ReportReview({
             <input value={testPurpose} onChange={(e) => setTestPurpose(e.target.value)} placeholder="如：血常规检查" />
           </Field>
         )}
-        <Field label="标题">
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="可选，如 2025 年度体检"
-          />
-        </Field>
-        <Field label="备注">
-          <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="可选" />
-        </Field>
       </div>
+
+        {/* 附件摘要：仅报告信息页展示（核对项目页聚焦检查项目/影像）。 */}
+        <div className="att-summary">
+          <strong>附件摘要（{attachments.length}）</strong>
+          {attachments.length === 0 ? (
+            <span className="dim">未选择附件</span>
+          ) : (
+            <ul className="att-summary-list">
+              {attachments.map((a) => <li key={a.id}>{a.name}</li>)}
+            </ul>
+          )}
+        </div>
+        </div>
+      )}
 
       {reportTypes.length === 0 && (
         <div className="purpose-suggestion" role="alert">
@@ -566,6 +591,8 @@ export function ReportReview({
         </div>
       )}
 
+      {view === 'items' && (
+        <div className="review-items-page">
       {reportKind === 'imaging' && (
         <div className="card imaging-editor" data-testid="imaging-fields">
           <h4>检查信息</h4>
@@ -914,6 +941,8 @@ export function ReportReview({
           </div>
         )}
       </div>
+        </div>
+      )}
 
       <div className="review-note dim">
         {editingReport
@@ -925,58 +954,76 @@ export function ReportReview({
 
       <div className="form-actions" aria-label="步骤3底部操作区">
         <div className="form-actions-left">
-          {onBack && (
+          {view === 'info' ? (
+            onBack && (
+              <button
+                type="button"
+                className="btn btn-ghost"
+                aria-label="返回上一步"
+                onClick={handleBack}
+                disabled={busy}
+              >
+                <ArrowLeft size={16} strokeWidth={2} aria-hidden="true" /> 返回上一步
+              </button>
+            )
+          ) : (
             <button
               type="button"
               className="btn btn-ghost"
-              aria-label="返回上一步"
-              onClick={() => onBack({
-                memberId,
-                reportMeta: {
-                  reportKind,
-                  imaging: reportKind === 'imaging'
-                    ? { ...imaging, ...(imagingExams.length ? { exams: imagingExams } : {}) }
-                    : { examPart: '', examMethod: '', findings: '', impression: '', measurements: '' },
-                  hospital,
-                  reportDate,
-                  reportType,
-                  reportTypes,
-                  testPurpose,
-                  title,
-                  notes,
-                },
-                items,
-                details,
-              })}
+              aria-label="返回报告信息"
+              onClick={() => setView('info')}
               disabled={busy}
             >
-              <ArrowLeft size={16} strokeWidth={2} aria-hidden="true" /> 返回上一步
+              <ArrowLeft size={16} strokeWidth={2} aria-hidden="true" /> 返回报告信息
             </button>
           )}
         </div>
         <div className="form-actions-right">
-          {pendingCount > 0 && reportKind === 'lab' && (
+          {view === 'items' && pendingCount > 0 && reportKind === 'lab' && (
             <span className="confirm-gate-note" role="alert">
               还有 {pendingCount} 项待确认，请逐项确认后才能保存生成正式记录。
             </span>
           )}
           {error && <span className="error-text">{error}</span>}
-          <button
-            type="button"
-            className="btn btn-ghost"
-            onClick={() => onDone(false)}
-            disabled={busy}
-          >
-            取消
-          </button>
-          <button
-            type="button"
-            className="btn btn-primary"
-            disabled={!canSave || busy}
-            onClick={() => void save()}
-          >
-            {busy ? '保存中…' : '保存报告'}
-          </button>
+          {view === 'info' ? (
+            <>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => onDone(false)}
+                disabled={busy}
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => setView('items')}
+                disabled={busy}
+              >
+                继续核对项目 <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => onDone(false)}
+                disabled={busy}
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={!canSave || busy}
+                onClick={() => void save()}
+              >
+                {busy ? '保存中…' : '保存报告'}
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>

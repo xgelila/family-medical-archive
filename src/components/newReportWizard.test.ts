@@ -330,3 +330,69 @@ describe('新建报告向导：样式移除旧四步圆圈导航，保留三步�
     expect(styles).toContain('.wizard-progress-text');
   });
 });
+
+describe('第三步拆成两个连续页面：报告信息页 → 核对检查项目页（移动端优先）', () => {
+  it('ReportReview 引入 view 状态（info/items），默认进入报告信息页', () => {
+    expect(review).toContain("useState<'info' | 'items'>('info')");
+    expect(review).toContain('review-info-page');
+    expect(review).toContain('review-items-page');
+  });
+
+  it('报告信息页只保留报告类型/日期/医疗机构/检验目的（检查项目）/附件摘要，成员只读', () => {
+    // 关键编辑字段保留在报告信息页
+    expect(review).toContain('<Field label="医院 / 体检机构 *">');
+    expect(review).toContain('<Field label="报告日期 *">');
+    expect(review).toContain('<Field label="报告类型 / 检查类别"');
+    expect(review).toContain('<Field label="检查项目">');
+    expect(review).toContain('<Field label="检验目的">');
+    // 成员改为只读展示（member-display），不再提供 select 切换
+    expect(review).toContain('member-display');
+    expect(review).toContain('memberName');
+    // 附件摘要：计数 + 文件名列表
+    expect(review).toContain('附件摘要（{attachments.length}）');
+    expect(review).toContain('att-summary-list');
+  });
+
+  it('标题 / 备注不再出现在报告信息页（移动端简化的“只保留核心信息”）', () => {
+    expect(review).not.toContain('<Field label="标题">');
+    expect(review).not.toContain('<Field label="备注">');
+  });
+
+  it('报告信息页底部操作栏：左「返回上一步」、右「继续核对项目」', () => {
+    expect(review).toContain('返回上一步');
+    expect(review).toContain('继续核对项目');
+    const back = review.indexOf('返回上一步');
+    const cta = review.indexOf('继续核对项目');
+    expect(back).toBeGreaterThan(-1);
+    expect(cta).toBeGreaterThan(back);
+  });
+
+  it('核对检查项目页集中显示项目 / 影像 exams / 待确认状态，底部左返回报告信息、右保存报告', () => {
+    // 待确认状态(chip-warn)、定位下一项、影像编辑、项目编辑、报告详情都在 items 页
+    expect(review).toContain('chip-warn');
+    expect(review).toContain('imaging-exam');
+    expect(review).toContain('<div className="details-section">');
+    // 底部切换：返回报告信息 ↔ 保存报告
+    expect(review).toContain('返回报告信息');
+    expect(review).toContain('保存报告');
+    const backInfo = review.indexOf('返回报告信息');
+    const save = review.indexOf('保存报告');
+    expect(backInfo).toBeGreaterThan(-1);
+    expect(save).toBeGreaterThan(backInfo);
+  });
+
+  it('报告信息页「返回上一步」通过 onBack 把完整草稿带回识别摘要页（不丢草稿）', () => {
+    expect(review).toContain('const handleBack = () => {');
+    expect(review).toContain('onBack?.({');
+    // 核对检查项目页内部切换不涉及向导返回，直接 setView('info')
+    expect(review).toContain("onClick={() => setView('info')}");
+    expect(review).toContain("onClick={() => setView('items')}");
+    expect(review).toContain('onClick={handleBack}');
+  });
+
+  it('保存门槛保持不变：待确认候选阻止保存；手动项目默认确认', () => {
+    expect(review).toContain('pendingItemCount(items) === 0');
+    expect(review).toContain('disabled={!canSave || busy}');
+    expect(review).toContain('还有 {pendingCount} 项待确认');
+  });
+});

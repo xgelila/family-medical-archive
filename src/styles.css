@@ -2010,6 +2010,39 @@ input:focus-visible,
   font-size: 13px;
 }
 
+/* 报告信息页：成员只读展示 + 附件摘要 */
+.member-display {
+  padding: 8px 10px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  background: var(--bg, #f5f6f8);
+  border-radius: var(--radius);
+  color: var(--text, #1a1a1a);
+}
+.att-summary {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #fff;
+}
+.att-summary > strong {
+  display: block;
+  font-size: 14px;
+  margin-bottom: 6px;
+}
+.att-summary-list {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+  color: var(--text-dim, #666);
+}
+.att-summary-list li {
+  margin: 2px 0;
+  word-break: break-all;
+}
+
 /* ---------- 报告详情（附加元数据 KV 编辑） ---------- */
 .details-section {
   margin-top: 4px;
