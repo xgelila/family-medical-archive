@@ -188,7 +188,7 @@ function statusMessage(status: number): string {
   switch (status) {
     case 401:
     case 403:
-      return '识别服务校验未通过：请检查本机服务配置（见项目 README 或「隐私说明」）后重启。';
+      return '服务端密钥被上游拒绝，请稍后重试。';
     case 404:
       return '识别接口不可用：请检查部署的 API 路由后重试。';
     case 413:
