@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Download, FlaskConical, Upload } from 'lucide-react';
 import { db } from '../db';
 import { buildExport, downloadJson, importPayload, type ImportResult } from '../utils/exportImport';
 import { loadSampleData } from '../sampleData';
@@ -202,7 +203,7 @@ export function DataManager({ bump }: { bump: () => void }) {
             disabled={busy}
             onClick={() => void doExport()}
           >
-            ⬇ 导出全部数据（JSON）
+            <Download size={16} strokeWidth={2} aria-hidden="true" /> 导出全部数据（JSON）
           </button>
           <button
             type="button"
@@ -210,7 +211,7 @@ export function DataManager({ bump }: { bump: () => void }) {
             disabled={busy}
             onClick={() => importRef.current?.click()}
           >
-            ⬆ 导入 JSON（覆盖）
+            <Upload size={16} strokeWidth={2} aria-hidden="true" /> 导入 JSON（覆盖）
           </button>
           <input
             ref={importRef}
@@ -306,7 +307,7 @@ export function DataManager({ bump }: { bump: () => void }) {
         </p>
         <div className="btn-row">
           <button type="button" className="btn" disabled={busy} onClick={() => void doSample()}>
-            🧪 载入示例数据
+            <FlaskConical size={16} strokeWidth={2} aria-hidden="true" /> 载入示例数据
           </button>
         </div>
       </div>

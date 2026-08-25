@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { X } from 'lucide-react';
 
 /**
  * 「隐私说明」弹窗：集中说明数据的存储、识别、第三方处理、密钥与删除/导出方式。
@@ -29,7 +30,7 @@ export function PrivacyModal({ onClose }: { onClose: () => void }) {
         <header className="img-editor-head">
           <strong id="privacy-modal-title">隐私说明</strong>
           <button type="button" className="btn btn-ghost" onClick={onClose} aria-label="关闭">
-            ✖ 关闭
+            <X size={16} strokeWidth={2} aria-hidden="true" /> 关闭
           </button>
         </header>
 

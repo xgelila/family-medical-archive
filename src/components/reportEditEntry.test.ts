@@ -53,7 +53,7 @@ describe('编辑入口：编辑已有报告进入统一编辑/核对界面（Rep
     expect(review).toContain('const reportId = editingReport?.id ?? uid();');
     expect(review).toContain('createdAt: editingReport?.createdAt ?? ts,');
     expect(review).toContain('removeAttachment');
-    expect(review).toContain('+ 添加图片/PDF 附件');
+    expect(review).toContain('添加图片/PDF 附件');
   });
 
   it('ReportReview 编辑模式不挂载旧识别面板', () => {

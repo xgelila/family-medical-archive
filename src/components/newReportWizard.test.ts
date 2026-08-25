@@ -236,7 +236,7 @@ describe('新建报告向导：第 3 步重新设计的「核对并保存」页�
 
   it('核对页提供「返回上一步」；返回识别摘要页且已识别结果不丢失', () => {
     expect(wizard).toContain('onBack={backToRecognition}');
-    expect(review).toContain('← 返回上一步');
+    expect(review).toContain('返回上一步');
     expect(wizard).toContain('setRecognizedItems(draft.items)');
     expect(wizard).toContain('setRecognizedDetails(draft.details)');
     expect(wizard).toContain('setRecognizedReportMeta(draft.reportMeta)');

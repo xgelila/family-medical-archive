@@ -1,4 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
+import {
+  AlertCircle,
+  AlertTriangle,
+  Check,
+  Inbox,
+  Info,
+  TrendingUp,
+} from 'lucide-react';
 import { db } from '../db';
 import { normalizeReportTypes, type Member, type Report, type ReportItem } from '../types';
 import { analyzeTrend, buildTrendPoint, numericItemNames, type TrendPoint } from '../utils/trend';
@@ -119,12 +127,13 @@ export function TrendView({
       </div>
 
       <div className="toolbar card trend-rule-note" role="note">
-        ℹ️ 仅同一成员、同名同类别同单位的已确认数值会连线；其余记录仅展示原文。
+        <Info size={16} strokeWidth={2} aria-hidden="true" />
+        仅同一成员、同名同类别同单位的已确认数值会连线；其余记录仅展示原文。
       </div>
 
       {!memberId || !name ? (
         <EmptyState
-          icon="📈"
+          icon={<TrendingUp size={40} strokeWidth={1.5} aria-hidden="true" />}
           title="选择成员与检查项目"
           desc="仅同名同类别同单位的已确认数值会连线；名称或单位不同会分开展示，绝不自动换算。"
         />
@@ -158,7 +167,7 @@ function renderAnalysis(
   gotoReport: (r: Report) => void,
 ) {
   if (analysis.kind === 'no-data') {
-    return <EmptyState icon="📭" title="暂无趋势数据" desc={analysis.message} />;
+    return <EmptyState icon={<Inbox size={40} strokeWidth={1.5} aria-hidden="true" />} title="暂无趋势数据" desc={analysis.message} />;
   }
 
   if (analysis.kind === 'mixed-units') {
@@ -241,7 +250,13 @@ function renderAnalysis(
 function Notice({ warning, tone }: { warning: string; tone: 'ok' | 'warn' | 'danger' }) {
   return (
     <div className={`notice notice-${tone}`} role="note">
-      {tone === 'danger' ? '⚠️ ' : tone === 'warn' ? '❗ ' : 'ℹ️ '}
+      {tone === 'danger' ? (
+        <AlertTriangle size={15} strokeWidth={2} aria-hidden="true" />
+      ) : tone === 'warn' ? (
+        <AlertCircle size={15} strokeWidth={2} aria-hidden="true" />
+      ) : (
+        <Info size={15} strokeWidth={2} aria-hidden="true" />
+      )}
       {warning}
     </div>
   );
@@ -293,7 +308,15 @@ function SeriesTable({
                       bump();
                     }}
                   >
-                    {p.confirmed ? '✓ 已确认' : '！待确认'}
+                    {p.confirmed ? (
+                      <>
+                        <Check size={14} strokeWidth={2} aria-hidden="true" /> 已确认
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle size={14} strokeWidth={2} aria-hidden="true" /> 待确认
+                      </>
+                    )}
                   </button>
                 </td>
                 <td>
@@ -325,7 +348,15 @@ function SeriesTable({
                   bump();
                 }}
               >
-                {p.confirmed ? '✓ 已确认' : '！待确认'}
+                {p.confirmed ? (
+                  <>
+                    <Check size={14} strokeWidth={2} aria-hidden="true" /> 已确认
+                  </>
+                ) : (
+                  <>
+                    <AlertCircle size={14} strokeWidth={2} aria-hidden="true" /> 待确认
+                  </>
+                )}
               </button>
             </div>
             <dl className="trend-record-fields">

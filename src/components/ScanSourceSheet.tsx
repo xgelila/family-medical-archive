@@ -8,6 +8,7 @@
  * 边界：仅负责把用户选择转发给上层已有的 file input；复用既有相机/相册能力，保持移动端。
  */
 import { useEffect } from 'react';
+import { Camera, ChevronRight, Image as ImageIcon, X } from 'lucide-react';
 
 export function ScanSourceSheet({
   onCamera,
@@ -38,28 +39,32 @@ export function ScanSourceSheet({
         <div className="source-sheet-head">
           <strong id="scan-source-title">扫描报告</strong>
           <button type="button" className="btn btn-ghost" onClick={onClose} aria-label="关闭">
-            ✕
+            <X size={16} strokeWidth={2} aria-hidden="true" />
           </button>
         </div>
         <div className="source-sheet-body">
           <button type="button" className="source-sheet-option" onClick={onCamera}>
-            <span className="entry-icon">📷</span>
+            <span className="entry-icon">
+              <Camera size={22} strokeWidth={1.8} aria-hidden="true" />
+            </span>
             <span className="entry-text">
               <strong>拍摄报告</strong>
               <small>调用相机直接拍照</small>
             </span>
             <span className="source-sheet-chevron" aria-hidden="true">
-              ›
+              <ChevronRight size={20} strokeWidth={2} />
             </span>
           </button>
           <button type="button" className="source-sheet-option" onClick={onGallery}>
-            <span className="entry-icon">🖼️</span>
+            <span className="entry-icon">
+              <ImageIcon size={22} strokeWidth={1.8} aria-hidden="true" />
+            </span>
             <span className="entry-text">
               <strong>从相册选择</strong>
               <small>选择照片或 PDF（可多选）</small>
             </span>
             <span className="source-sheet-chevron" aria-hidden="true">
-              ›
+              <ChevronRight size={20} strokeWidth={2} />
             </span>
           </button>
           <p className="source-sheet-note dim">

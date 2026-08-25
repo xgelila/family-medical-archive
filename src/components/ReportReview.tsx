@@ -29,6 +29,18 @@ import {
 } from '../utils/customReportTypes';
 import { Field, ConfirmButton } from './Kit';
 import { todayISO } from '../utils/dates';
+import {
+  AlertCircle,
+  ArrowLeft,
+  Check,
+  ChevronDown,
+  ChevronUp,
+  FileText,
+  Image as ImageIcon,
+  Paperclip,
+  Plus,
+  X,
+} from 'lucide-react';
 
 /**
  * 统一报告编辑/核对界面（新建向导第 4 步「核对并保存」+ 编辑已有报告）。
@@ -422,7 +434,9 @@ export function ReportReview({
           <details className="report-type-dropdown" open={reportTypeOpen} onToggle={(e) => setReportTypeOpen(e.currentTarget.open)}>
             <summary className="report-type-summary">
               <span>{reportTypes.length ? `已选 ${reportTypes.length} 项` : '请选择'}</span>
-              <span aria-hidden="true">▾</span>
+              <span aria-hidden="true">
+                <ChevronDown size={16} strokeWidth={2} />
+              </span>
             </summary>
             <div className="report-type-menu" role="group" aria-label="报告类型选项">
               {visibleTypes.map((t) => (
@@ -513,7 +527,14 @@ export function ReportReview({
                   attachments.map((a) => (
                     <span key={a.id} className="att-chip-row">
                       <span className="att-chip" title={a.name}>
-                        {a.kind === 'image' ? '🖼️' : a.kind === 'pdf' ? '📄' : '📎'} {a.name}
+                        {a.kind === 'image' ? (
+                          <ImageIcon size={14} strokeWidth={1.8} aria-hidden="true" />
+                        ) : a.kind === 'pdf' ? (
+                          <FileText size={14} strokeWidth={1.8} aria-hidden="true" />
+                        ) : (
+                          <Paperclip size={14} strokeWidth={1.8} aria-hidden="true" />
+                        )}{' '}
+                        {a.name}
                       </span>
                       <ConfirmButton
                         label="移除"
@@ -538,7 +559,7 @@ export function ReportReview({
                 }}
               />
               <button type="button" className="btn btn-sm" onClick={() => fileRef.current?.click()}>
-                + 添加图片/PDF 附件
+                <Plus size={15} strokeWidth={2} aria-hidden="true" /> 添加图片/PDF 附件
               </button>
             </>
           )}
@@ -588,7 +609,7 @@ export function ReportReview({
               onClick={() => setItems((l) => [...l, emptyDraft()])}
               disabled={editingReport ? editStatus !== 'ready' : false}
             >
-              + 添加项目
+              <Plus size={15} strokeWidth={2} aria-hidden="true" /> 添加项目
             </button>
           </div>
         </div>
@@ -636,7 +657,15 @@ export function ReportReview({
                           className={`status-toggle ${it.confirmed ? 'st-ok' : 'st-warn'}`}
                           onClick={() => setItem(i, { confirmed: !it.confirmed })}
                         >
-                          {it.confirmed ? '✓ 已确认' : '！待确认'}
+                          {it.confirmed ? (
+                            <>
+                              <Check size={14} strokeWidth={2} aria-hidden="true" /> 已确认
+                            </>
+                          ) : (
+                            <>
+                              <AlertCircle size={14} strokeWidth={2} aria-hidden="true" /> 待确认
+                            </>
+                          )}
                         </button>
                       </td>
                       <td>
@@ -729,7 +758,15 @@ export function ReportReview({
                       aria-pressed={it.confirmed}
                       onClick={() => setItem(i, { confirmed: !it.confirmed })}
                     >
-                      {it.confirmed ? '✓ 已确认' : '！待确认'}
+                      {it.confirmed ? (
+                        <>
+                          <Check size={14} strokeWidth={2} aria-hidden="true" /> 已确认
+                        </>
+                      ) : (
+                        <>
+                          <AlertCircle size={14} strokeWidth={2} aria-hidden="true" /> 待确认
+                        </>
+                      )}
                     </button>
                     <span className="item-card-idx">#{i + 1}</span>
                   </div>
@@ -765,7 +802,12 @@ export function ReportReview({
                     aria-expanded={moreOpen.has(i)}
                     onClick={() => toggleMore(i)}
                   >
-                    更多（参考区间 / 检验方法 / 备注）{moreOpen.has(i) ? '▴' : '▾'}
+                    更多（参考区间 / 检验方法 / 备注）
+                    {moreOpen.has(i) ? (
+                      <ChevronUp size={16} strokeWidth={2} aria-hidden="true" />
+                    ) : (
+                      <ChevronDown size={16} strokeWidth={2} aria-hidden="true" />
+                    )}
                   </button>
                   {moreOpen.has(i) && (
                     <div className="item-card-more">
@@ -817,7 +859,12 @@ export function ReportReview({
         <button type="button" className="details-toggle" onClick={() => setDetailsOpen((v) => !v)}>
           <span>报告详情（送检医生 / 检验者 / 审核者等附加信息）</span>
           <span className="dim">
-            {details.length > 0 ? `${details.length} 项` : '无'} {detailsOpen ? '▴' : '▾'}
+            {details.length > 0 ? `${details.length} 项` : '无'}{' '}
+            {detailsOpen ? (
+              <ChevronUp size={15} strokeWidth={2} aria-hidden="true" />
+            ) : (
+              <ChevronDown size={15} strokeWidth={2} aria-hidden="true" />
+            )}
           </span>
         </button>
         {detailsOpen && (
@@ -853,7 +900,7 @@ export function ReportReview({
                   aria-label="删除该行"
                   onClick={() => setDetails((list) => list.filter((_, idx) => idx !== i))}
                 >
-                  ✕
+                  <X size={15} strokeWidth={2} aria-hidden="true" />
                 </button>
               </div>
             ))}
@@ -862,7 +909,7 @@ export function ReportReview({
               className="btn btn-sm"
               onClick={() => setDetails((list) => [...list, { label: '', value: '' }])}
             >
-              + 添加一行
+              <Plus size={15} strokeWidth={2} aria-hidden="true" /> 添加一行
             </button>
           </div>
         )}
@@ -903,7 +950,7 @@ export function ReportReview({
               })}
               disabled={busy}
             >
-              ← 返回上一步
+              <ArrowLeft size={16} strokeWidth={2} aria-hidden="true" /> 返回上一步
             </button>
           )}
         </div>
