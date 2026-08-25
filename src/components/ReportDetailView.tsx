@@ -8,6 +8,7 @@ import {
   FileText,
   Image as ImageIcon,
   Paperclip,
+  Pencil,
 } from 'lucide-react';
 import { db } from '../db';
 import {
@@ -32,10 +33,12 @@ export function ReportDetailView({
   report,
   memberName,
   onClose,
+  onEdit,
 }: {
   report: Report;
   memberName: string;
   onClose: () => void;
+  onEdit?: (report: Report) => void;
 }) {
   const [items, setItems] = useState<ReportItem[]>([]);
   const [attachments, setAttachments] = useState<AttachmentRecord[]>([]);
@@ -81,9 +84,16 @@ export function ReportDetailView({
             {report.title ? ` · ${report.title}` : ''}
           </p>
         </div>
-        <button type="button" className="btn btn-ghost btn-sm" onClick={onClose}>
-          <ArrowLeft size={16} strokeWidth={2} aria-hidden="true" /> 返回
-        </button>
+        <div className="readonly-head-actions">
+          {onEdit && (
+            <button type="button" className="btn btn-sm" onClick={() => onEdit(report)}>
+              <Pencil size={16} strokeWidth={2} aria-hidden="true" /> 编辑
+            </button>
+          )}
+          <button type="button" className="btn btn-ghost btn-sm" onClick={onClose}>
+            <ArrowLeft size={16} strokeWidth={2} aria-hidden="true" /> 返回
+          </button>
+        </div>
       </div>
 
       {/* 报告基础信息 */}

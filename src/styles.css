@@ -1522,6 +1522,12 @@ input:focus-visible,
 .readonly-head h4 {
   margin: 0 0 4px;
 }
+.readonly-head-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
 .readonly-basic {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));

@@ -95,6 +95,12 @@ export default function App() {
     if (saved) bump();
   };
 
+  /** 从只读详情页进入编辑：关闭只读详情并打开编辑表单。 */
+  const openEditFromDetail = (r: Report) => {
+    setReadOnlyReport(null);
+    setEditingReport(r);
+  };
+
   return (
     <div className="app">
       <header className="app-header">
@@ -180,6 +186,7 @@ export default function App() {
               report={readOnlyReport}
               memberName={memberName(readOnlyReport.memberId)}
               onClose={() => setReadOnlyReport(null)}
+              onEdit={openEditFromDetail}
             />
           ) : (
             <>
@@ -203,17 +210,20 @@ export default function App() {
             <div className="page-head">
               <h2>指标趋势对比</h2>
             </div>
-            {readOnlyReport ? (
-              <ReportDetailView
-                report={readOnlyReport}
-                memberName={memberName(readOnlyReport.memberId)}
-                onClose={() => setReadOnlyReport(null)}
-              />
-            ) : (
+            {/* 保持 TrendView 挂载（display:none 隐藏），查看报告返回后筛选/图表状态不丢失 */}
+            <div style={{ display: readOnlyReport ? 'none' : undefined }}>
               <TrendView
                 refreshKey={refreshKey}
                 bump={bump}
                 gotoReport={(r) => setReadOnlyReport(r)}
+              />
+            </div>
+            {readOnlyReport && (
+              <ReportDetailView
+                report={readOnlyReport}
+                memberName={memberName(readOnlyReport.memberId)}
+                onClose={() => setReadOnlyReport(null)}
+                onEdit={openEditFromDetail}
               />
             )}
           </>

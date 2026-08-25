@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest';
  *
  * 契约校验（源级）：
  * - App 趋势分支渲染 ReportDetailView（只读），趋势「查看报告」不再触发编辑回调；
- * - 只读视图不含任何保存 / 删除 / 修改 / 编辑入口，但保留返回操作；
+ * - 只读视图不含保存 / 删除 / 修改入口，但提供编辑入口和返回操作；
  * - 报告列表/管理页的编辑入口（ReportManager → onEdit → ReportReview）保持不变。
  */
 
@@ -45,10 +45,14 @@ describe('趋势「查看报告」进入只读详情（不再进入编辑）', (
     expect(trend).not.toContain('保存');
     expect(trend).not.toContain('删除');
   });
+  it('趋势「查看报告」返回后筛选/图表状态保留：TrendView 以 display:none 保持挂载，而非卸载', () => {
+    expect(s(app, "display: readOnlyReport ? 'none' : undefined")).toBe(true);
+    expect(app).toContain('gotoReport={(r) => setReadOnlyReport(r)}');
+  });
 });
 
-describe('只读详情视图不含任何编辑/保存/删除/修改入口', () => {
-  it('不渲染保存、删除、编辑动作', () => {
+describe('只读详情视图无保存/删除/修改入口，但提供编辑入口', () => {
+  it('不渲染保存、删除、修改动作', () => {
     expect(detail).not.toContain('保存报告');
     expect(detail).not.toContain('删除该项目');
     expect(detail).not.toContain('deleteReportCascade');
@@ -56,6 +60,14 @@ describe('只读详情视图不含任何编辑/保存/删除/修改入口', () =
     expect(detail).not.toContain('canSave');
     // 不引用/渲染确认删除、新增附件`添加`、保存等编辑面控件
     expect(detail).not.toContain('ConfirmButton');
+  });
+
+  it('只读详情提供编辑入口：onEdit 回调渲染「编辑」按钮，App 由详情切到编辑表单', () => {
+    expect(detail).toContain('onEdit?: (report: Report) => void;');
+    expect(detail).toContain('onClick={() => onEdit(report)}');
+    expect(detail).toContain('编辑');
+    expect(app).toContain('onEdit={openEditFromDetail}');
+    expect(app).toContain('const openEditFromDetail');
   });
 
   it('只读视图提供明确的返回操作', () => {
