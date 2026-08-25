@@ -148,6 +148,11 @@ export default function App() {
                   setEditingReport(null);
                   setTab('members');
                 }}
+                onManageTypes={() => {
+                  setCreatingReport(false);
+                  setEditingReport(null);
+                  setTab('data');
+                }}
               />
             ) : (
               <ReportReview
@@ -155,6 +160,11 @@ export default function App() {
                 editingReport={editingReport}
                 initialMemberId={editingReport?.memberId ?? ''}
                 onDone={closeForm}
+                onManageTypes={() => {
+                  setCreatingReport(false);
+                  setEditingReport(null);
+                  setTab('data');
+                }}
               />
             )
           ) : (

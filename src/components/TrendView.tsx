@@ -10,7 +10,7 @@ import {
 import { db } from '../db';
 import { normalizeReportTypes, type Member, type Report, type ReportItem } from '../types';
 import { analyzeTrend, buildTrendPoint, numericItemNames, type TrendPoint } from '../utils/trend';
-import { EmptyState, Field, Chip } from './Kit';
+import { Chip, EmptyState, Field, SelectEmptyHint } from './Kit';
 import { MiniLineChart } from './MiniLineChart';
 
 export function TrendView({
@@ -92,6 +92,7 @@ export function TrendView({
               </option>
             ))}
           </select>
+          <SelectEmptyHint when={!memberId} message="未选择成员：趋势将等待选择成员后展示。" />
         </Field>
         <Field label="报告类型" hint="仅筛选包含该类型的检验报告">
           <select value={reportType} onChange={(e) => { setReportType(e.target.value); setName(''); }} disabled={!memberId}>

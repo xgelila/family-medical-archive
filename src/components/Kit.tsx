@@ -36,6 +36,20 @@ export function EmptyState({
   );
 }
 
+/**
+ * 统一的下拉框空值反馈（辅助文本，非 toast）：
+ * 当「未选择」分支（when 为真）命中时，在原生下选框下方渲染一条 role="status" 的
+ * 明确说明，避免用户点开/清空下拉后静默无反馈。优先原生 select 的 change/onBlur 语义与辅助文本。
+ */
+export function SelectEmptyHint({ when, message }: { when: boolean; message: string }) {
+  if (!when) return null;
+  return (
+    <small className="select-empty-hint" role="status">
+      {message}
+    </small>
+  );
+}
+
 export function Chip({
   children,
   tone = 'neutral',

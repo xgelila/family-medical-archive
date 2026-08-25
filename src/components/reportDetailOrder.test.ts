@@ -15,16 +15,19 @@ const root = join(__dirname, '..', '..');
 const read = (p: string) => readFileSync(join(root, 'src', 'components', p), 'utf-8');
 
 const indexOf = (src: string, marker: string) => src.indexOf(marker);
+/** 去空白后再定位（对 prettier 换行敏感的模式），保留顺序语义。 */
+const indexOfStripped = (src: string, marker: string) =>
+  src.replace(/\s+/g, '').indexOf(marker.replace(/\s+/g, ''));
 
 describe('报告详情固定在检查项目列表底部（报告基础字段 -> 检查项目 -> 报告详情）', () => {
   it('ReportReview：检查项目（item-editor）在报告详情（details-section）之前', () => {
     const src = read('ReportReview.tsx');
     // item-editor carries the report-kind visibility/style attributes in the current DOM.
-    const itemsAt = indexOf(
+    const itemsAt = indexOfStripped(
       src,
-      '<div className="item-editor" style={reportKind === \'lab\' ? undefined : { display: \'none\' }} data-report-kind={reportKind}>',
+      "<div className=\"item-editor\" style={reportKind === 'lab' ? undefined : { display: 'none' }} data-report-kind={reportKind}>",
     );
-    const detailsAt = indexOf(src, '<div className="details-section">');
+    const detailsAt = indexOfStripped(src, '<div className="details-section">');
     expect(itemsAt).toBeGreaterThan(0);
     expect(detailsAt).toBeGreaterThan(0);
     expect(itemsAt).toBeLessThan(detailsAt);

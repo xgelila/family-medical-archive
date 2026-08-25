@@ -393,7 +393,25 @@ body {
   cursor: pointer;
 }
 .report-type-option:hover { background: var(--surface-muted, #f3f5f8); }
+.report-type-menu-footer {
+  margin-top: 4px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border, #d8dee8);
+}
+.report-type-manage-btn {
+  width: 100%;
+  min-height: 36px;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--accent, #2563eb);
+  text-align: left;
+  cursor: pointer;
+}
+.report-type-manage-btn:hover { background: var(--surface-muted, #f3f5f8); text-decoration: underline; }
 .report-type-selected { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+.select-empty-hint { display: block; margin-top: 4px; color: var(--muted, #7a8699); font-size: .86em; }
 .imaging-method-shared { padding: 8px 0; font-size: .9em; }
 
 .form-card h4 {

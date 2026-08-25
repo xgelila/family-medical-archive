@@ -44,7 +44,7 @@ describe('编辑入口：编辑已有报告进入统一编辑/核对界面（Rep
     expect(review).toContain('editingReport?.memberId');
     expect(review).toContain('editingReport?.hospital');
     // 编辑模式通过可单测的加载器从数据库读取既有项目/附件（含加载竞态保护）
-    expect(review).toContain("import {");
+    expect(review).toContain('import {');
     expect(review).toContain('loadEditReportData');
     expect(review).toContain('canSaveEditReport');
   });
@@ -78,16 +78,17 @@ describe('语义分离：检验目的（testPurpose）≠ 报告类型（reportT
   });
 
   it('ReportReview 把检验目的作为独立固定字段（Field 检验目的），与报告类型分开显示', () => {
-    expect(review).toContain('<Field label="报告类型 / 检查类别"');
-    expect(review).toContain('<Field label="检验目的"');
-    // 报告类型受控 select 与检验目的 input 是两个独立字段
+    expect(review.replace(/\s+/g, '')).toContain('label="报告类型 / 检查类别"'.replace(/\s+/g, ''));
+    expect(review.replace(/\s+/g, '')).toContain('<Field label="检验目的"'.replace(/\s+/g, ''));
     expect(review).toContain('initialReportMeta?.testPurpose ??');
     expect(review).toContain('testPurpose: testPurpose.trim(),');
   });
 
   it('ReportReview 报告类型 select 仅受控选项 + 保留原值；检验目的不塞进报告类型', () => {
     expect(review).toContain('visibleTypes.map((t) =>');
-    expect(review).toContain('type={reportKind === \'imaging\' ? \'checkbox\' : \'radio\'}');
+    expect(review.replace(/\s+/g, '')).toContain(
+      '<input type="checkbox"name="report-type"'.replace(/\s+/g, ''),
+    );
     expect(review).toContain('reportTypes');
   });
 });
@@ -132,6 +133,6 @@ describe('自定义报告类型管理入口位于 DataManager（数据管理页�
 
   it('App 数据管理分支渲染 DataManager，且不新增无关顶级导航', () => {
     expect(app).toContain("import { DataManager } from './components/DataManager'");
-    expect(app).toContain("<DataManager bump={bump} />");
+    expect(app).toContain('<DataManager bump={bump} />');
   });
 });

@@ -342,7 +342,9 @@ describe('第三步拆成两个连续页面：报告信息页 → 核对检查�
     // 关键编辑字段保留在报告信息页
     expect(review).toContain('<Field label="医院 / 体检机构 *">');
     expect(review).toContain('<Field label="报告日期 *">');
-    expect(review).toContain('<Field label="报告类型 / 检查类别"');
+    expect(review.replace(/\s+/g, '')).toContain(
+      '<Field label="报告类型 / 检查类别"'.replace(/\s+/g, ''),
+    );
     expect(review).toContain('<Field label="检查项目">');
     expect(review).toContain('<Field label="检验目的">');
     // 成员改为只读展示（member-display），不再提供 select 切换

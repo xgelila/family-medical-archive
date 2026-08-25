@@ -72,6 +72,7 @@ export function ReportReview({
   editingReport,
   onDone,
   onBack,
+  onManageTypes,
 }: {
   members: Member[];
   initialMemberId: string;
@@ -89,6 +90,8 @@ export function ReportReview({
     items: ItemDraft[];
     details: ReportDetail[];
   }) => void;
+  /** 自定义报告类型管理入口：跳转到「数据管理」页，打开既有管理面板。 */
+  onManageTypes?: () => void;
 }) {
   const [reportKind, setReportKind] = useState<ReportKind>(editingReport?.reportKind ?? initialReportMeta?.reportKind ?? 'lab');
   // 识别结果的 exams 可能由兼容层放在 reportMeta.exams，而 imaging 只含旧版单项字段；
@@ -451,7 +454,7 @@ export function ReportReview({
         <Field label="报告日期 *">
           <input type="date" value={reportDate} onChange={(e) => setReportDate(e.target.value)} />
         </Field>
-        <Field label="报告类型 / 检查类别" hint={reportKind === 'imaging' ? '可多选；至少选择一项或保留原类型' : '检验报告可选择一项'}>
+        <Field label="报告类型 / 检查类别" hint="检验与检查报告均可多选类型（如同一张检验单既含“超敏C反应蛋白”又含“肝功能”）；至少选择一项或保留原类型">
           <details className="report-type-dropdown" open={reportTypeOpen} onToggle={(e) => setReportTypeOpen(e.currentTarget.open)}>
             <summary className="report-type-summary">
               <span>{reportTypes.length ? `已选 ${reportTypes.length} 项` : '请选择'}</span>
@@ -462,14 +465,21 @@ export function ReportReview({
             <div className="report-type-menu" role="group" aria-label="报告类型选项">
               {visibleTypes.map((t) => (
                 <label key={t} className="report-type-option">
-                  <input type={reportKind === 'imaging' ? 'checkbox' : 'radio'} name="report-type" checked={reportTypes.includes(t)} onChange={() => reportKind === 'imaging' ? toggleReportType(t) : setReportType(t)} />
+                  <input type="checkbox" name="report-type" checked={reportTypes.includes(t)} onChange={() => toggleReportType(t)} />
                   <span>{t}</span>
                 </label>
               ))}
+              {onManageTypes && (
+                <div className="report-type-menu-footer">
+                  <button type="button" className="report-type-manage-btn" onClick={onManageTypes}>
+                    管理报告类型…
+                  </button>
+                </div>
+              )}
             </div>
           </details>
           {reportTypes.length > 0 && <div className="report-type-selected" aria-label="已选报告类型">{reportTypes.map((t) => <span key={t} className="chip">{t}</span>)}</div>}
-          {reportTypes.length === 0 && <small className="error-text">未匹配报告类型：报告仍可保存，检验项目仍可进入趋势；但按报告类型筛选/统计不会命中。建议补选已有类型，或在下方明确保存为新类型。</small>}
+          {reportTypes.length === 0 && <small className="error-text" aria-live="polite">未匹配报告类型：报告仍可保存，检验项目仍可进入趋势；但按报告类型筛选/统计不会命中。建议补选已有类型，或点击下方“管理报告类型…”。</small>}
         </Field>
         {reportKind === 'imaging' ? (
           <Field label="检查项目">

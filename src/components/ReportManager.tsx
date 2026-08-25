@@ -21,7 +21,7 @@ import {
   type ReportItem,
 } from '../types';
 import { mergeReportTypes, loadCustomReportTypes } from '../utils/customReportTypes';
-import { Chip, ConfirmButton, EmptyState, Field } from './Kit';
+import { Chip, ConfirmButton, EmptyState, Field, SelectEmptyHint } from './Kit';
 import { toDisplayDate } from '../utils/dates';
 
 export interface ReportFilters {
@@ -205,6 +205,7 @@ export function ReportManager({
                   </option>
                 ))}
               </select>
+              <SelectEmptyHint when={!filters.memberId} message="未选择成员，将显示全部成员。" />
             </Field>
             <Field label="报告大类">
               <select
@@ -235,6 +236,7 @@ export function ReportManager({
                   </option>
                 ))}
               </select>
+              <SelectEmptyHint when={!filters.reportType} message="未选择报告类型，将显示全部类型。" />
             </Field>
             <Field label="起始日期">
               <input
