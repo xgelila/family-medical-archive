@@ -370,7 +370,9 @@ body {
   cursor: pointer;
   list-style: none;
 }
-.report-type-summary::-webkit-details-marker { display: none; }
+.report-type-summary::-webkit-details-marker {
+  display: none;
+}
 .report-type-menu {
   position: absolute;
   z-index: 5;
@@ -382,7 +384,7 @@ body {
   border: 1px solid var(--border, #d8dee8);
   border-radius: 6px;
   background: var(--surface, #fff);
-  box-shadow: 0 5px 14px rgba(0,0,0,.12);
+  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.12);
 }
 .report-type-option {
   display: flex;
@@ -392,7 +394,9 @@ body {
   padding: 6px 8px;
   cursor: pointer;
 }
-.report-type-option:hover { background: var(--surface-muted, #f3f5f8); }
+.report-type-option:hover {
+  background: var(--surface-muted, #f3f5f8);
+}
 .report-type-menu-footer {
   margin-top: 4px;
   padding-top: 6px;
@@ -409,10 +413,26 @@ body {
   text-align: left;
   cursor: pointer;
 }
-.report-type-manage-btn:hover { background: var(--surface-muted, #f3f5f8); text-decoration: underline; }
-.report-type-selected { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
-.select-empty-hint { display: block; margin-top: 4px; color: var(--muted, #7a8699); font-size: .86em; }
-.imaging-method-shared { padding: 8px 0; font-size: .9em; }
+.report-type-manage-btn:hover {
+  background: var(--surface-muted, #f3f5f8);
+  text-decoration: underline;
+}
+.report-type-selected {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 6px;
+}
+.select-empty-hint {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted, #7a8699);
+  font-size: 0.86em;
+}
+.imaging-method-shared {
+  padding: 8px 0;
+  font-size: 0.9em;
+}
 
 .form-card h4 {
   margin: 0 0 12px;
@@ -476,8 +496,9 @@ body {
   gap: 10px;
   flex-wrap: wrap;
 }
-.form-actions-right { margin-left: auto; }
-
+.form-actions-right {
+  margin-left: auto;
+}
 
 .error-text {
   color: var(--danger);
@@ -779,6 +800,24 @@ body {
 /* ---------- 趋势 ---------- */
 .trend-view .toolbar {
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
+/* 趋势界面顶部的辅助说明：作为趋势区的正常块级文本，左对齐、不溢出到外层背景 */
+.trend-rule-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+  text-align: left;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  padding: 4px 2px;
+}
+.trend-rule-note svg {
+  flex-shrink: 0;
+  margin-top: 2px;
 }
 
 .single-series {
@@ -1411,6 +1450,96 @@ input:focus-visible,
 .filter-count-badge {
   margin-left: 6px;
   font-size: 12px;
+}
+
+/* ---------- 报告只读详情（趋势「查看报告」） ---------- */
+.report-readonly {
+  overflow-wrap: anywhere;
+}
+.readonly-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.readonly-head h4 {
+  margin: 0 0 4px;
+}
+.readonly-basic {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.ro-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 14px;
+}
+.ro-field dt {
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 12px;
+}
+.ro-field dd {
+  margin: 0;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.chip-row {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.ro-section {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ro-section-title {
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.ro-text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.ro-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+}
+.ro-item-card {
+  list-style: none;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+  background: #fff;
+}
+.ro-item-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.ro-details .details-row {
+  margin-bottom: 8px;
 }
 
 /* ---------- 移动端响应式 ---------- */

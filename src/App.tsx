@@ -18,6 +18,7 @@ import { MemberManager } from './components/MemberManager';
 import { ReportManager } from './components/ReportManager';
 import { NewReportWizard } from './components/NewReportWizard';
 import { ReportReview } from './components/ReportReview';
+import { ReportDetailView } from './components/ReportDetailView';
 import { TrendView } from './components/TrendView';
 import { DataManager } from './components/DataManager';
 import { PrivacyModal } from './components/PrivacyModal';
@@ -41,6 +42,8 @@ export default function App() {
   // 报告编辑状态（编辑时占据整个报告视图）
   const [editingReport, setEditingReport] = useState<Report | null>(null);
   const [creatingReport, setCreatingReport] = useState(false);
+  // 趋势「查看报告」进入的只读详情（不提供编辑/保存/删除入口）
+  const [readOnlyReport, setReadOnlyReport] = useState<Report | null>(null);
 
   const [members, setMembers] = useState<Member[]>([]);
   const [stats, setStats] = useState<{
@@ -106,6 +109,7 @@ export default function App() {
                   setTab(t.key);
                   setEditingReport(null);
                   setCreatingReport(false);
+                  setReadOnlyReport(null);
                 }}
               >
                 <span className="tab-icon">
@@ -178,14 +182,19 @@ export default function App() {
             <div className="page-head">
               <h2>指标趋势对比</h2>
             </div>
-            <TrendView
-              refreshKey={refreshKey}
-              bump={bump}
-              gotoReport={(r) => {
-                setEditingReport(r);
-                setTab('reports');
-              }}
-            />
+            {readOnlyReport ? (
+              <ReportDetailView
+                report={readOnlyReport}
+                memberName={memberName(readOnlyReport.memberId)}
+                onClose={() => setReadOnlyReport(null)}
+              />
+            ) : (
+              <TrendView
+                refreshKey={refreshKey}
+                bump={bump}
+                gotoReport={(r) => setReadOnlyReport(r)}
+              />
+            )}
           </>
         )}
 

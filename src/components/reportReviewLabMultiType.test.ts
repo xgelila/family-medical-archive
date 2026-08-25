@@ -80,22 +80,33 @@ describe('类型下拉底部自定义类型管理入口（当前页弹层，不�
   });
 });
 
-describe('统一空值反馈（SelectEmptyHint 辅助文本，非 toast）', () => {
-  it('Kit 提供统一空值反馈组件（role=status，辅助文本）', () => {
+describe('核心筛选下拉不再渲染冗余说明文本（不显示也不占布局），必备筛选控件与空态保留', () => {
+  it('Kit 仍提供 SelectEmptyHint 组件（recordrole=status，供其他可选场景复用）', () => {
     expect(kit).toContain('export function SelectEmptyHint(');
     expect(s(kit, 'role="status"')).toBe(true);
   });
 
-  it('ReportReview 报告类型未选择时有明确反馈（aria-live 辅助文本）', () => {
+  it('ReportReview 报告类型未选择时有明确反馈（aria-live 辅助文本，属于核对输入反馈）', () => {
     expect(review).toContain('aria-live="polite"');
     expect(review).toContain('未匹配报告类型：报告仍可保存');
   });
 
-  it('核心筛选下拉接入空值反馈：ReportManager 成员/类型、趋势成员', () => {
+  it('删除入选的三条筛选/趋势说明文本：ReportManager 成员/类型、趋势成员', () => {
     const manager = read('components/ReportManager.tsx');
     const trend = read('components/TrendView.tsx');
-    expect(manager).toContain('未选择成员，将显示全部成员。');
-    expect(manager).toContain('未选择报告类型，将显示全部类型。');
-    expect(trend).toContain('未选择成员：趋势将等待选择成员后展示。');
+    // 需求删除的辅助说明不再渲染（不显示也不占布局）
+    expect(manager).not.toContain('未选择成员，将显示全部成员。');
+    expect(manager).not.toContain('未选择报告类型，将显示全部类型。');
+    expect(trend).not.toContain('未选择成员：趋势将等待选择成员后展示。');
+  });
+
+  it('必备筛选控件与空态仍保留：成员/报告类型 select（TrendView）、「全部成员/全部类型」占位、report Type 必备提示', () => {
+    const manager = read('components/ReportManager.tsx');
+    const trend = read('components/TrendView.tsx');
+    expect(manager).toContain('<option value="">全部成员</option>');
+    expect(manager).toContain('<option value="">全部类型</option>');
+    expect(trend).toContain("请选择检查项目' : '先选择成员'");
+    expect(trend).toContain('label="检查项目 *"');
+    expect(trend).toContain('EmptyState');
   });
 });
