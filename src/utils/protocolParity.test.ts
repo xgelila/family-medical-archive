@@ -12,16 +12,16 @@ describe('本机与 Vercel 结构化协议一致', () => {
     };
     expect(config.outputDirectory).toBe('dist');
     expect(config.rewrites).toBeUndefined();
-    const api = readFileSync(resolve(process.cwd(), 'api/recognize-report.ts'), 'utf8');
-    expect(api).toContain('export default async function handler');
-    expect(api).toContain('readRecognizeServiceConfig(process.env)');
+    const api = readFileSync(resolve(process.cwd(), 'api/recognize-report.js'), 'utf8');
+    expect(api).toContain('module.exports = async function handler');
+    expect(api).toContain('DEEPSEEK_API_KEY');
     expect(api).not.toContain('import.meta.env');
   });
 
   it('Vercel API 使用无浏览器/Vite 依赖的纯 Node 服务模块', () => {
-    const api = readFileSync(resolve(process.cwd(), 'api/recognize-report.ts'), 'utf8');
-    expect(api).toContain("from './recognize-service'");
-    expect(api).toContain('buildRecognizePayload(config.model, body.text, body.mode)');
+    const api = readFileSync(resolve(process.cwd(), 'api/recognize-report.js'), 'utf8');
+    expect(api).toContain('dependency-free CommonJS entrypoint');
+    expect(api).toContain('SYSTEM_PROMPT');
     expect(api).not.toContain("from '../recognizeServer'");
     const service = readFileSync(resolve(process.cwd(), 'api/recognize-service.ts'), 'utf8');
     expect(service).not.toContain("from '../src/");
