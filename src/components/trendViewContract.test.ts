@@ -63,13 +63,12 @@ describe('趋势空态统一放入卡片内容容器（不落到外层灰色背�
     expect(trend).toContain('<TrendEmptyCard');
   });
 
-  it('空态卡片容器样式：卡片内左对齐、正常流、不溢出，且不用绝对定位/负 margin 掩盖', () => {
+  it('空态卡片容器样式：卡片内居中、图标与文字颜色一致、不溢出，且不用绝对定位/负 margin 掩盖', () => {
     expect(styles).toContain('.trend-empty.card');
-    expect(styles).toContain('.trend-empty .empty-state');
-    expect(styles).toContain('.trend-empty .empty-desc');
-    expect(styles.match(/\.trend-empty \.empty-state \{[^}]*text-align: left;/)).not.toBeNull();
-    expect(styles).not.toMatch(
-      /\.trend-empty \{[^}]*?(position: absolute|margin-left: -|margin-right: -)/,
-    );
+    expect(styles).toContain('.trend-empty .empty-icon');
+    // 空态本身使用 EmptyState 的居中样式（.empty-state text-align: center），趋势页不再强制左对齐
+    expect(styles).toContain('.empty-state');
+    expect(styles.match(/\.empty-state \{[^}]*text-align: center;/)).not.toBeNull();
+    expect(styles).not.toMatch(/\.trend-empty \{[^}]*?(text-align: left|position: absolute|margin-left: -|margin-right: -)/);
   });
 });
