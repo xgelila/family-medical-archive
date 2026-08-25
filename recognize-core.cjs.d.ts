@@ -1,0 +1,10 @@
+export const DEFAULT_ENDPOINT: string;
+export const DEFAULT_MODEL: string;
+export const SYSTEM_PROMPT: string;
+export function normalizeEndpoint(value?: unknown): string;
+export function config(env?: Record<string, string | undefined>): { apiKey:string; endpoint:string; model:string; authHeader:string; authScheme:string };
+export function buildPayload(text:string, mode?:string, cfg?: ReturnType<typeof config>): object;
+export function extractContent(payload: unknown): string | null;
+export function errorMessage(status:number): string;
+export function safeError(status:number, code:string, id:string|null, stage:string, attempted:boolean, key:string): object;
+export function recognize(text:string, mode?:string, env?:Record<string,string|undefined>, signal?:AbortSignal): Promise<any>;
