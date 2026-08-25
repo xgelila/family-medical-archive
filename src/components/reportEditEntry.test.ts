@@ -23,6 +23,7 @@ const read = (p: string) => readFileSync(join(root, 'src', p), 'utf-8');
 const app = read('App.tsx');
 const review = read('components/ReportReview.tsx');
 const dataManager = read('components/DataManager.tsx');
+const typeManager = read('components/ReportTypeManager.tsx');
 
 describe('编辑入口：编辑已有报告进入统一编辑/核对界面（ReportReview），不挂旧界面', () => {
   it('App.tsx 编辑分支渲染 ReportReview 而非旧 ReportForm', () => {
@@ -120,19 +121,29 @@ describe('未匹配检验目的的一次性保存建议（ReportReview 源级校
   });
 });
 
-describe('自定义报告类型管理入口位于 DataManager（数据管理页）', () => {
-  it('DataManager 包含完整管理入口（查看内置/自定义、删除、手动新增）', () => {
+describe('自定义报告类型管理：共享面板 + 当前页弹层（不再跳转 DataManager）', () => {
+  it('DataManager 复用共享管理面板（不复制第二套增删改存储逻辑）', () => {
     expect(dataManager).toContain('自定义报告类型管理');
-    expect(dataManager).toContain('内置类型（不可删除）');
-    expect(dataManager).toContain('我的报告类型（自定义）');
-    expect(dataManager).toContain('新增自定义报告类型名称');
-    expect(dataManager).toContain('handleDeleteCustomType');
-    expect(dataManager).toContain('deleteCustomReportType(');
-    expect(dataManager).toContain('addCustomReportType(');
+    expect(dataManager).toContain('<ReportTypeManagerPanel');
+    // DataManager 自身不再内嵌增删改存储逻辑（已抽取到共享面板/工具）
+    expect(dataManager).not.toContain('handleDeleteCustomType');
+    expect(dataManager).not.toContain('await db.customReportTypes.put');
+  });
+
+  it('共享面板 ReportTypeManager 包含完整管理（内置只读 / 自定义删除 / 手动新增），且复用 customReportTypes 工具', () => {
+    expect(typeManager).toContain('内置类型（不可删除）');
+    expect(typeManager).toContain('我的报告类型（自定义）');
+    expect(typeManager).toContain('新增自定义报告类型名称');
+    expect(typeManager).toContain('addCustomReportType(');
+    expect(typeManager).toContain('deleteCustomReportType(');
+    // 持久化复用工具函数，不复制存储代码
+    expect(typeManager).not.toContain('await db.customReportTypes.put');
   });
 
   it('App 数据管理分支渲染 DataManager，且不新增无关顶级导航', () => {
     expect(app).toContain("import { DataManager } from './components/DataManager'");
     expect(app).toContain('<DataManager bump={bump} />');
+    // App 不再为了管理类型切 tab（不再调用 setTab('data') 的管理入口）
+    expect(app).not.toContain('onManageTypes');
   });
 });

@@ -70,15 +70,12 @@ export function NewReportWizard({
   onCancel,
   onDone,
   onGoToMembers,
-  onManageTypes,
 }: {
   members: Member[];
   onCancel: () => void;
   onDone: (saved: boolean) => void;
   /** 无成员时「去成员页添加」入口：跳转到「成员」页并关闭向导。 */
   onGoToMembers?: () => void;
-  /** 自定义报告类型管理入口：跳转到「数据管理」页（会关闭当前向导，未保存草稿将丢失）。 */
-  onManageTypes?: () => void;
 }) {
   const [step, setStep] = useState<Step>(1);
   const [addPhase, setAddPhase] = useState<AddPhase>('source');
@@ -538,7 +535,6 @@ export function NewReportWizard({
           attachments={attachments}
           onBack={backToRecognition}
           onDone={onDone}
-          onManageTypes={onManageTypes}
         />
       )}
     </div>

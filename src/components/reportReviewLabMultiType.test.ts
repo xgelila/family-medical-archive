@@ -62,17 +62,20 @@ describe('检验（lab）报告类型多选', () => {
   });
 });
 
-describe('类型下拉底部自定义类型管理入口', () => {
-  it('下拉菜单底部提供「管理报告类型…」清晰入口（真实按钮，可操作）', () => {
+describe('类型下拉底部自定义类型管理入口（当前页弹层，不再跳转 DataManager）', () => {
+  it('下拉菜单底部提供「管理报告类型…」清晰入口（真实按钮，可操作，打开当前页弹层）', () => {
     expect(s(review, '管理报告类型…')).toBe(true);
-    expect(review).toContain('onManageTypes && (');
     expect(s(review, 'className="report-type-manage-btn"')).toBe(true);
+    expect(review).toContain('setTypesManagerOpen(true)');
   });
 
-  it('入口通过 onManageTypes 回调打开既有管理（不内嵌/复制 DataManager 逻辑）', () => {
-    expect(s(review, 'onManageTypes?: () => void;')).toBe(true);
-    expect(s(review, 'onClick={onManageTypes}')).toBe(true);
-    // 不在 ReportReview 内复制新增/删除类型逻辑（既有 DataManager 负责）
+  it('入口打开当前页内弹层 ReportTypeManagerModal（复用共享面板），不在 ReportReview 复制管理逻辑', () => {
+    expect(review).toContain("import { ReportTypeManagerModal } from './ReportTypeManager'");
+    expect(s(review, '<ReportTypeManagerModal')).toBe(true);
+    expect(review).toContain('onClose={() => setTypesManagerOpen(false)}');
+    // 不再有跳转 DataManager 的回调（不再为此关闭向导 / 切页）
+    expect(review).not.toContain('onManageTypes');
+    // 不在 ReportReview 内复制新增/删除类型逻辑（共享面板/工具负责）
     expect(review).not.toContain('await db.customReportTypes.put');
   });
 });

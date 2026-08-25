@@ -1,83 +1,16 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { Download, FlaskConical, Upload } from 'lucide-react';
 import { db } from '../db';
 import { buildExport, downloadJson, importPayload, type ImportResult } from '../utils/exportImport';
 import { loadSampleData } from '../sampleData';
 import { todayISO } from '../utils/dates';
 import { ConfirmButton } from './Kit';
-import { REPORT_TYPES } from '../types';
-import {
-  addCustomReportType,
-  deleteCustomReportType,
-  loadCustomReportTypes,
-  mergeReportTypes,
-  validateCustomReportTypeName,
-  type CustomReportType,
-} from '../utils/customReportTypes';
+import { ReportTypeManagerPanel } from './ReportTypeManager';
 
 export function DataManager({ bump }: { bump: () => void }) {
   const importRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ tone: 'ok' | 'err'; text: string } | null>(null);
-
-  // 自定义报告类型管理（用户主动进入）
-  const [customTypes, setCustomTypes] = useState<CustomReportType[]>([]);
-  const [customLoaded, setCustomLoaded] = useState(false);
-  const [customLoading, setCustomLoading] = useState(true);
-  const [customLoadError, setCustomLoadError] = useState('');
-  const [newTypeInput, setNewTypeInput] = useState('');
-  const [newTypeError, setNewTypeError] = useState('');
-
-  const loadTypes = async () => {
-    setCustomLoading(true);
-    setCustomLoadError('');
-    try {
-      const cts = await loadCustomReportTypes();
-      setCustomTypes(cts);
-      setCustomLoaded(true);
-    } catch (e) {
-      setCustomLoadError(`加载失败：${e instanceof Error ? e.message : String(e)}`);
-    } finally {
-      setCustomLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    void loadTypes();
-  }, []);
-
-  const handleAddCustomType = async () => {
-    const existing = mergeReportTypes(customTypes);
-    const v = validateCustomReportTypeName(newTypeInput, existing);
-    if (!v.ok) {
-      setNewTypeError(v.error);
-      return;
-    }
-    let rec: CustomReportType | null = null;
-    try {
-      rec = await addCustomReportType(v.normalized);
-    } catch (e) {
-      setNewTypeError(`保存失败：${e instanceof Error ? e.message : String(e)}`);
-      return;
-    }
-    if (rec) {
-      setCustomTypes((prev) => [...prev, rec]);
-      setNewTypeInput('');
-      setNewTypeError('');
-    } else {
-      setNewTypeError('保存失败：名称为空、过长或已存在');
-    }
-  };
-
-  const handleDeleteCustomType = async (id: string) => {
-    try {
-      await deleteCustomReportType(id);
-      setCustomTypes((prev) => prev.filter((c) => c.id !== id));
-      setMessage({ tone: 'ok', text: '已删除自定义报告类型。' });
-    } catch (e) {
-      setMessage({ tone: 'err', text: `删除失败：${e instanceof Error ? e.message : String(e)}` });
-    }
-  };
 
   const doExport = async () => {
     setBusy(true);
@@ -231,71 +164,7 @@ export function DataManager({ bump }: { bump: () => void }) {
         <p className="dim">
           报告类型为严格受控选项：内置类型不可删除；自定义类型由你主动添加/删除，用于识别时匹配检验目的。
         </p>
-        {customLoading && <p className="dim" role="status">正在加载自定义报告类型…</p>}
-        {customLoadError && (
-          <div className="edit-load-error" role="alert">
-            <span className="error-text">{customLoadError}</span>
-            <button type="button" className="btn btn-sm" onClick={() => void loadTypes()}>
-              重试
-            </button>
-          </div>
-        )}
-        {!customLoading && !customLoadError && (
-          <>
-            <div className="att-head">
-              <strong>内置类型（不可删除）</strong>
-            </div>
-            <div className="att-row">
-              {REPORT_TYPES.map((t) => (
-                <span key={t} className="att-chip" title="内置报告类型">
-                  {t}
-                </span>
-              ))}
-            </div>
-            <div className="att-head">
-              <strong>我的报告类型（自定义）</strong>
-              <small>可删除；可手动新增</small>
-            </div>
-            <div className="custom-types-add" style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-              <input
-                value={newTypeInput}
-                onChange={(e) => {
-                  setNewTypeInput(e.target.value);
-                  setNewTypeError('');
-                }}
-                placeholder="新增自定义报告类型名称"
-                style={{ flex: 1 }}
-              />
-              <button type="button" className="btn btn-sm" onClick={() => void handleAddCustomType()}>
-                添加
-              </button>
-            </div>
-            {newTypeError && <p className="error-text">{newTypeError}</p>}
-            {customLoaded && customTypes.length === 0 ? (
-              <p className="dim">暂无自定义报告类型；可在上方手动新增，或在核对保存时按一次性建议保存。</p>
-            ) : (
-              <div className="att-row">
-                {customTypes.map((c) => (
-                  <span key={c.id} className="att-chip-row">
-                    <span
-                      className="att-chip"
-                      title={c.aliases.length > 0 ? `已确认别名：${c.aliases.join('、')}` : c.name}
-                    >
-                      {c.name}
-                    </span>
-                    <ConfirmButton
-                      label="删除"
-                      confirmText={`删除自定义报告类型「${c.name}」？`}
-                      danger
-                      small
-                      onConfirm={() => void handleDeleteCustomType(c.id)}
-                    />
-                  </span>
-                ))}
-              </div>
-            )}
-          </>
-        )}
+        <ReportTypeManagerPanel />
       </div>
 
       <div className="card form-card">

@@ -28,6 +28,7 @@ import {
   type CustomReportType,
 } from '../utils/customReportTypes';
 import { Field, ConfirmButton } from './Kit';
+import { ReportTypeManagerModal } from './ReportTypeManager';
 import { todayISO } from '../utils/dates';
 import {
   AlertCircle,
@@ -72,7 +73,6 @@ export function ReportReview({
   editingReport,
   onDone,
   onBack,
-  onManageTypes,
 }: {
   members: Member[];
   initialMemberId: string;
@@ -90,9 +90,9 @@ export function ReportReview({
     items: ItemDraft[];
     details: ReportDetail[];
   }) => void;
-  /** 自定义报告类型管理入口：跳转到「数据管理」页，打开既有管理面板。 */
-  onManageTypes?: () => void;
 }) {
+  // 当前页内「管理报告类型」弹层（不跳转 DataManager，切 tab 只会丢弃草稿）。
+  const [typesManagerOpen, setTypesManagerOpen] = useState(false);
   const [reportKind, setReportKind] = useState<ReportKind>(editingReport?.reportKind ?? initialReportMeta?.reportKind ?? 'lab');
   // 识别结果的 exams 可能由兼容层放在 reportMeta.exams，而 imaging 只含旧版单项字段；
   // 初始化时合并两者，避免首屏把 AI 已识别的子检查覆盖成空数组。
@@ -237,6 +237,16 @@ export function ReportReview({
   const selectableTypes = [...new Set([...kindTypes, ...reportTypes, ...inferredExamTypes])];
   const visibleTypes = [...new Set([...selectableTypes, ...(legacyType ? [legacyType] : [])])];
   const toggleReportType = (type: string) => setReportTypes((prev) => prev.includes(type) ? prev.filter((v) => v !== type) : [...prev, type]);
+
+  // 关闭类型管理弹层后刷新当前报告类型选项（新增/删除的自定义类型即时出现在下拉）。
+  const refreshCustomTypes = async () => {
+    try {
+      const cts = await loadCustomReportTypes();
+      setCustomTypes(cts);
+    } catch {
+      /* 刷新失败不影响草稿，仍保留已有选项 */
+    }
+  };
   const [reportTypeOpen, setReportTypeOpen] = useState(false);
   useEffect(() => {
     if (reportKind !== 'imaging' || inferredExamTypes.length === 0) return;
@@ -469,13 +479,15 @@ export function ReportReview({
                   <span>{t}</span>
                 </label>
               ))}
-              {onManageTypes && (
-                <div className="report-type-menu-footer">
-                  <button type="button" className="report-type-manage-btn" onClick={onManageTypes}>
-                    管理报告类型…
-                  </button>
-                </div>
-              )}
+              <div className="report-type-menu-footer">
+                <button
+                  type="button"
+                  className="report-type-manage-btn"
+                  onClick={() => setTypesManagerOpen(true)}
+                >
+                  管理报告类型…
+                </button>
+              </div>
             </div>
           </details>
           {reportTypes.length > 0 && <div className="report-type-selected" aria-label="已选报告类型">{reportTypes.map((t) => <span key={t} className="chip">{t}</span>)}</div>}
@@ -538,7 +550,7 @@ export function ReportReview({
           {newTypeError && <p className="error-text">{newTypeError}</p>}
           <p className="dim">
             保存后当前报告类型将自动选中该新类型；检验目的（testPurpose）仍作为独立字段保留并可编辑。
-            完整管理（查看/删除/手动新增）请在「数据管理」页进行。
+            完整管理（查看/删除/手动新增）可在当前页下方的「管理报告类型…」弹层中进行。
           </p>
         </div>
       )}
@@ -1036,6 +1048,14 @@ export function ReportReview({
           )}
         </div>
       </div>
+
+      {typesManagerOpen && (
+        <ReportTypeManagerModal
+          reportKind={reportKind}
+          onClose={() => setTypesManagerOpen(false)}
+          onChanged={() => void refreshCustomTypes()}
+        />
+      )}
     </div>
   );
 }
