@@ -26,6 +26,21 @@ import { toDisplayDate } from './utils/dates';
 
 type Tab = 'overview' | 'members' | 'reports' | 'trend' | 'data';
 
+/**
+ * 统一的页面导航栈。
+ *
+ * 顶层 Tab（overview/members/reports/trend/data）作为栈根；报告详情/编辑/新建为栈上层。
+ * 所有「返回」统一为 pop()，天然回到上一页，避免平铺 state 导致的“返回不到上一页”。
+ */
+type Route =
+  | { name: 'overview' }
+  | { name: 'members' }
+  | { name: 'reports' }
+  | { name: 'reportDetail'; report: Report }
+  | { name: 'reportEdit'; report: Report | null }
+  | { name: 'trend' }
+  | { name: 'data' };
+
 const TABS: { key: Tab; label: string; icon: LucideIcon }[] = [
   { key: 'overview', label: '概览', icon: Home },
   { key: 'members', label: '成员', icon: Users },
@@ -35,18 +50,20 @@ const TABS: { key: Tab; label: string; icon: LucideIcon }[] = [
 ];
 
 export default function App() {
-  const [tab, setTab] = useState<Tab>('overview');
+  const [stack, setStack] = useState<Route[]>([{ name: 'overview' }]);
+  const current = stack[stack.length - 1];
+  const push = useCallback((r: Route) => setStack((s) => [...s, r]), []);
+  const pop = useCallback(() => setStack((s) => (s.length > 1 ? s.slice(0, -1) : s)), []);
+  const switchTab = useCallback((t: Tab) => setStack([{ name: t } as Route]), []);
+
+  // 趋势筛选状态提升到 App 层：从趋势进入报告详情再返回，筛选/图表状态不丢失。
+  const [trendFilter, setTrendFilter] = useState<{ memberId: string; name: string }>({
+    memberId: '',
+    name: '',
+  });
+
   const [refreshKey, setRefreshKey] = useState(0);
   const bump = useCallback(() => setRefreshKey((k) => k + 1), []);
-
-  // 报告编辑状态（编辑时占据整个报告视图）
-  const [editingReport, setEditingReport] = useState<Report | null>(null);
-  const [creatingReport, setCreatingReport] = useState(false);
-  // 趋势「查看报告」进入的只读详情（不提供编辑/保存/删除入口）
-  const [readOnlyReport, setReadOnlyReport] = useState<Report | null>(null);
-  // 编辑入口来源：'list'=报告列表直接编辑，'detail'=从只读详情进入编辑。
-  // 用于关闭表单后决定返回目的页（报告详情 or 报告列表）。
-  const [editOrigin, setEditOrigin] = useState<'list' | 'detail'>('list');
 
   const [members, setMembers] = useState<Member[]>([]);
   const [stats, setStats] = useState<{
@@ -92,36 +109,36 @@ export default function App() {
 
   const memberName = (id: string) => members.find((m) => m.id === id)?.name ?? '未知成员';
 
-  const closeForm = async (saved: boolean) => {
-    // 记录编辑来源与只读详情目标报告 id，来源决定关闭表单后返回目的页。
-    const origin = editOrigin;
-    const roId = readOnlyReport?.id;
-    setEditingReport(null);
-    setCreatingReport(false);
-    setEditOrigin('list');
-    if (saved) bump();
-    if (origin === 'detail' && roId) {
-      // 从详情进入编辑：返回详情页（readOnlyReport 编辑期间保留、未清空）。
-      // 保存成功后重新加载最新报告，避免详情展示保存前的旧字段。
-      if (saved) {
+  /** 关闭报告编辑/新建表单：返回上一页（pop）。保存成功时刷新数据与返回目标（若为详情页）。 */
+  const closeReportForm = async (saved: boolean) => {
+    const target = stack[stack.length - 2];
+    if (saved) {
+      bump();
+      if (target?.name === 'reportDetail') {
+        // 从详情进入编辑：保存后重载最新报告，避免详情页展示保存前的旧字段。
         try {
-          const fresh = await db.reports.get(roId);
-          if (fresh) setReadOnlyReport(fresh);
+          const fresh = await db.reports.get(target.report.id);
+          if (fresh) {
+            setStack((s) =>
+              s.map((r, i) =>
+                i === s.length - 2 && r.name === 'reportDetail'
+                  ? { name: 'reportDetail', report: fresh }
+                  : r,
+              ),
+            );
+          }
         } catch {
-          /* 重新加载失败则保留现有详情 */
+          /* 重载失败则保留原详情 */
         }
       }
-    } else {
-      // 从列表直接编辑 / 新建：返回报告列表。
-      setReadOnlyReport(null);
     }
+    pop();
   };
 
-  /** 从只读详情页进入编辑：保留 readOnlyReport 作为返回目标（详情页），仅打开编辑表单。 */
-  const openEditFromDetail = (r: Report) => {
-    setEditOrigin('detail');
-    setEditingReport(r);
-  };
+  const activeTab: Tab =
+    current.name === 'reportDetail' || current.name === 'reportEdit'
+      ? 'reports'
+      : (current.name as Tab);
 
   return (
     <div className="app">
@@ -142,14 +159,9 @@ export default function App() {
               <button
                 key={t.key}
                 type="button"
-                className={`tab-btn ${tab === t.key ? 'tab-active' : ''}`}
-                aria-current={tab === t.key ? 'page' : undefined}
-                onClick={() => {
-                  setTab(t.key);
-                  setEditingReport(null);
-                  setCreatingReport(false);
-                  setReadOnlyReport(null);
-                }}
+                className={`tab-btn ${activeTab === t.key ? 'tab-active' : ''}`}
+                aria-current={activeTab === t.key ? 'page' : undefined}
+                onClick={() => switchTab(t.key)}
               >
                 <span className="tab-icon">
                   <Icon size={17} strokeWidth={1.8} aria-hidden="true" />
@@ -164,7 +176,7 @@ export default function App() {
       <Disclaimer />
 
       <main className="app-main">
-        {tab === 'overview' && (
+        {current.name === 'overview' && (
           <Overview
             stats={stats}
             latestReports={latestReports}
@@ -173,88 +185,72 @@ export default function App() {
             error={overviewError}
             onRetry={bump}
             onCreate={() => {
-              setCreatingReport(true);
-              setTab('reports');
+              setStack([{ name: 'reports' }, { name: 'reportEdit', report: null }]);
             }}
-            onGoto={(t: Tab) => setTab(t)}
+            onGoto={(t: Tab) => switchTab(t)}
           />
         )}
 
-        {tab === 'members' && <MemberManager refreshKey={refreshKey} bump={bump} />}
+        {current.name === 'members' && <MemberManager refreshKey={refreshKey} bump={bump} />}
 
-        {tab === 'reports' &&
-          (creatingReport || editingReport ? (
-            creatingReport && !editingReport ? (
-              <NewReportWizard
-                members={members}
-                onCancel={() => closeForm(false)}
-                onDone={closeForm}
-                onGoToMembers={() => {
-                  setCreatingReport(false);
-                  setEditingReport(null);
-                  setTab('members');
-                }}
-              />
-            ) : (
-              <ReportReview
-                members={members}
-                editingReport={editingReport}
-                initialMemberId={editingReport?.memberId ?? ''}
-                onDone={closeForm}
-              />
-            )
-          ) : readOnlyReport ? (
-            <ReportDetailView
-              report={readOnlyReport}
-              memberName={memberName(readOnlyReport.memberId)}
-              onClose={() => setReadOnlyReport(null)}
-              onEdit={openEditFromDetail}
+        {current.name === 'reports' && (
+          <>
+            <div className="page-head">
+              <h2>体检报告</h2>
+            </div>
+            <ReportManager
+              refreshKey={refreshKey}
+              bump={bump}
+              onCreate={() => push({ name: 'reportEdit', report: null })}
+              onEdit={(r) => push({ name: 'reportEdit', report: r })}
+              onView={(r) => push({ name: 'reportDetail', report: r })}
+            />
+          </>
+        )}
+
+        {current.name === 'reportDetail' && (
+          <ReportDetailView
+            report={current.report}
+            memberName={memberName(current.report.memberId)}
+            onClose={pop}
+            onEdit={(r) => push({ name: 'reportEdit', report: r })}
+          />
+        )}
+
+        {current.name === 'reportEdit' &&
+          (current.report === null ? (
+            <NewReportWizard
+              members={members}
+              onCancel={() => pop()}
+              onDone={closeReportForm}
+              onGoToMembers={() => switchTab('members')}
             />
           ) : (
-            <>
-              <div className="page-head">
-                <h2>体检报告</h2>
-              </div>
-              <ReportManager
-                refreshKey={refreshKey}
-                bump={bump}
-                onCreate={() => {
-                  setCreatingReport(true);
-                }}
-                onEdit={(r) => {
-                  setEditOrigin('list');
-                  setEditingReport(r);
-                }}
-                onView={(r) => setReadOnlyReport(r)}
-              />
-            </>
+            <ReportReview
+              members={members}
+              editingReport={current.report}
+              initialMemberId={current.report.memberId}
+              onDone={closeReportForm}
+            />
           ))}
 
-        {tab === 'trend' && (
+        {current.name === 'trend' && (
           <>
             <div className="page-head">
               <h2>指标趋势对比</h2>
             </div>
-            {/* 保持 TrendView 挂载（display:none 隐藏），查看报告返回后筛选/图表状态不丢失 */}
-            <div style={{ display: readOnlyReport ? 'none' : undefined }}>
-              <TrendView
-                refreshKey={refreshKey}
-                bump={bump}
-                gotoReport={(r) => setReadOnlyReport(r)}
-              />
-            </div>
-            {readOnlyReport && (
-              <ReportDetailView
-                report={readOnlyReport}
-                memberName={memberName(readOnlyReport.memberId)}
-                onClose={() => setReadOnlyReport(null)}
-                onEdit={openEditFromDetail}
-              />
-            )}
+            <TrendView
+              refreshKey={refreshKey}
+              bump={bump}
+              gotoReport={(r) => push({ name: 'reportDetail', report: r })}
+              memberId={trendFilter.memberId}
+              name={trendFilter.name}
+              onFilterChange={(patch) => setTrendFilter((f) => ({ ...f, ...patch }))}
+            />
           </>
         )}
 
-        {tab === 'data' && (
+        {current.name === 'data' && (
           <>
             <div className="page-head">
               <h2>数据管理</h2>

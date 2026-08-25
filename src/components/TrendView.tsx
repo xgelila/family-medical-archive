@@ -10,16 +10,21 @@ export function TrendView({
   refreshKey,
   bump,
   gotoReport,
+  memberId,
+  name,
+  onFilterChange,
 }: {
   refreshKey: number;
   bump: () => void;
   gotoReport: (r: Report) => void;
+  /** 筛选状态提升到父层：跨页面查看报告返回后保留（受控）。 */
+  memberId: string;
+  name: string;
+  onFilterChange: (patch: { memberId?: string; name?: string }) => void;
 }) {
   const [members, setMembers] = useState<Member[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
   const [items, setItems] = useState<ReportItem[]>([]);
-  const [memberId, setMemberId] = useState('');
-  const [name, setName] = useState('');
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -86,8 +91,7 @@ export function TrendView({
           <select
             value={memberId}
             onChange={(e) => {
-              setMemberId(e.target.value);
-              setName('');
+              onFilterChange({ memberId: e.target.value, name: '' });
             }}
           >
             <option value="">请选择成员</option>
@@ -99,7 +103,7 @@ export function TrendView({
           </select>
         </Field>
         <Field label="检查项目 *">
-          <select value={name} onChange={(e) => setName(e.target.value)} disabled={!memberId}>
+          <select value={name} onChange={(e) => onFilterChange({ name: e.target.value })} disabled={!memberId}>
             <option value="">{memberId ? '请选择检查项目' : '先选择成员'}</option>
             {candidates.map((n) => (
               <option key={n} value={n}>

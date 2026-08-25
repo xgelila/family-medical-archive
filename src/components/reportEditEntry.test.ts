@@ -33,11 +33,13 @@ describe('编辑入口：编辑已有报告进入统一编辑/核对界面（Rep
     expect(app).not.toContain('<ReportForm');
   });
 
-  it('编辑分支把 editingReport 传给 ReportReview，且不触发创建向导', () => {
-    // 编辑（editingReport 非空）走 ReportReview；创建（creatingReport 且非编辑）走 NewReportWizard
-    expect(app).toContain('creatingReport && !editingReport ?');
+  it('编辑分支把 report 传给 ReportReview（栈 Route.reportEdit），且不触发创建向导', () => {
+    // 导航栈：reportEdit 时 current.report 非空走 ReportReview，null 走 NewReportWizard
+    expect(app).toContain("current.name === 'reportEdit'");
+    expect(app).toContain('current.report === null');
+    expect(app).toContain('<NewReportWizard');
     expect(app).toContain('<ReportReview');
-    expect(app).toContain('editingReport={editingReport}');
+    expect(app).toContain('editingReport={current.report}');
   });
 
   it('ReportReview 支持编辑模式：接收 editingReport 并从其加载项目/附件', () => {

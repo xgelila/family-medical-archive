@@ -26,16 +26,15 @@ const trend = read('components/TrendView.tsx');
 const manager = read('components/ReportManager.tsx');
 
 describe('趋势「查看报告」进入只读详情（不再进入编辑）', () => {
-  it('App 趋势分支渲染 ReportDetailView（只读），并提供只读返回', () => {
+  it('App 通过导航栈渲染 ReportDetailView（只读），返回统一 pop', () => {
     expect(app).toContain("import { ReportDetailView } from './components/ReportDetailView'");
     expect(app).toContain('<ReportDetailView');
-    expect(app).toContain('onClose={() => setReadOnlyReport(null)}');
+    expect(app).toContain('onClose={pop}');
   });
 
-  it('趋势「查看报告」不再调用编辑回调/跳转报告列表编辑：gotoReport 只设置只读态', () => {
-    // 趋势分支不再把报告设为 editingReport，也不 setTab('reports')
-    expect(app).toContain('gotoReport={(r) => setReadOnlyReport(r)}');
-    expect(s(app, 'readOnlyReport ? (<ReportDetailView')).toBe(true);
+  it('趋势「查看报告」进入只读详情：gotoReport push reportDetail，不进入编辑', () => {
+    expect(s(app, "gotoReport={(r) => push({ name: 'reportDetail', report: r })}")).toBe(true);
+    expect(s(app, "current.name === 'reportDetail' && (<ReportDetailView")).toBe(true);
   });
 
   it('TrendView 自身不再提供编辑回调：查看报告始终走 gotoReport（只读入口）', () => {
@@ -45,9 +44,10 @@ describe('趋势「查看报告」进入只读详情（不再进入编辑）', (
     expect(trend).not.toContain('保存');
     expect(trend).not.toContain('删除');
   });
-  it('趋势「查看报告」返回后筛选/图表状态保留：TrendView 以 display:none 保持挂载，而非卸载', () => {
-    expect(s(app, "display: readOnlyReport ? 'none' : undefined")).toBe(true);
-    expect(app).toContain('gotoReport={(r) => setReadOnlyReport(r)}');
+  it('趋势「查看报告」返回后筛选/图表状态保留：筛选状态提升到 App 层（受控），栈 pop 回趋势不丢', () => {
+    expect(app).toContain('const [trendFilter, setTrendFilter] = useState');
+    expect(app).toContain('memberId={trendFilter.memberId}');
+    expect(app).toContain('name={trendFilter.name}');
   });
 });
 
@@ -62,12 +62,11 @@ describe('只读详情视图无保存/删除/修改入口，但提供编辑入�
     expect(detail).not.toContain('ConfirmButton');
   });
 
-  it('只读详情提供编辑入口：onEdit 回调渲染「编辑」按钮，App 由详情切到编辑表单', () => {
+  it('只读详情提供编辑入口：onEdit 回调渲染「编辑」按钮，App 由详情 push 编辑', () => {
     expect(detail).toContain('onEdit?: (report: Report) => void;');
     expect(detail).toContain('onClick={() => onEdit(report)}');
     expect(detail).toContain('编辑');
-    expect(app).toContain('onEdit={openEditFromDetail}');
-    expect(app).toContain('const openEditFromDetail');
+    expect(s(app, "onEdit={(r) => push({ name: 'reportEdit', report: r })}")).toBe(true);
   });
 
   it('只读视图提供明确的返回操作', () => {
@@ -104,19 +103,15 @@ describe('列表查看/编辑入口仍为可编辑（仅趋势「查看报告」
     expect(manager).toContain('onClick={() => onEdit(r)}');
   });
 
-  it('报告列表卡片为摘要入口：点击 onView 打开只读详情（App 报告中 tab 也渲染 ReportDetailView）', () => {
+  it('报告列表卡片为摘要入口：点击 onView push 只读详情', () => {
     expect(manager).toContain('onView: (r: Report) => void;');
     expect(manager).toContain('onClick={() => onView(r)}');
-    // App 报告 tab：点击列表卡片进入只读详情（readOnlyReport 态），并在该 tab 渲染 ReportDetailView
-    expect(app).toContain('onView={(r) => setReadOnlyReport(r)}');
-    expect(s(app, 'readOnlyReport ? (<ReportDetailView')).toBe(true);
+    expect(s(app, "onView={(r) => push({ name: 'reportDetail', report: r })}")).toBe(true);
   });
 
   it('App 报告列表编辑仍走 ReportReview（不因只读改造改变列表编辑路径）', () => {
     expect(app).toContain('<ReportReview');
-    expect(app).toContain('editingReport={editingReport}');
-    // 列表直接编辑：记录 source=list 后打开 ReportReview（返回回列表）
-    expect(app).toContain("setEditOrigin('list')");
-    expect(app).toContain('setEditingReport(r)');
+    expect(app).toContain('editingReport={current.report}');
+    expect(s(app, "onEdit={(r) => push({ name: 'reportEdit', report: r })}")).toBe(true);
   });
 });

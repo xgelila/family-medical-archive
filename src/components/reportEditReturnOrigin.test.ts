@@ -6,11 +6,10 @@ import { describe, expect, it } from 'vitest';
 /**
  * 需求：报告详情页进入编辑后，返回/取消/保存应回到报告详情页（上一页），而不是报告列表。
  *
- * 实现：App.tsx 增加 editOrigin 记录编辑来源（'list' | 'detail'），
- * - 列表 onEdit 记 origin='list'（回到列表）；
- * - openEditFromDetail 记 origin='detail' 且不清空 readOnlyReport（作为返回目标）；
- * - closeForm 按 origin 决定返回目的页，详情来源保存成功后用 db.reports.get 重载最新报告。
- * 渲染优先级 editingReport 优先于 readOnlyReport 保持不变。
+ * 实现：App.tsx 用统一导航栈（Route[] + push/pop）替代平铺 state：
+ * - 列表 onView/onEdit、详情 onEdit、趋势 gotoReport 都是 push 到栈顶；
+ * - 所有「返回」统一为 pop()，天然回到上一页；
+ * - closeReportForm 保存成功后若返回目标是详情页，用 db.reports.get 重载最新报告。
  */
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, '..', '..');
@@ -20,65 +19,64 @@ const s = (src: string, fragment: string) =>
 
 const app = read('App.tsx');
 
-describe('编辑来源记录（editOrigin）：详情进入编辑后返回详情页', () => {
-  it('App.tsx 声明 editOrigin 状态（list | detail）', () => {
+describe('统一导航栈（Route[] + push/pop）替代平铺状态', () => {
+  it('App.tsx 声明 Route 类型与 stack 状态，并导出 push/pop/switchTab', () => {
+    expect(app).toContain('type Route =');
+    expect(app).toContain("| { name: 'reportDetail'; report: Report }");
+    expect(app).toContain("| { name: 'reportEdit'; report: Report | null }");
+    expect(app).toContain("useState<Route[]>([{ name: 'overview' }])");
+    expect(app).toContain('const push = useCallback((r: Route) => setStack((s) => [...s, r]), []);');
     expect(app).toContain(
-      "const [editOrigin, setEditOrigin] = useState<'list' | 'detail'>('list')",
+      'const pop = useCallback(() => setStack((s) => (s.length > 1 ? s.slice(0, -1) : s)), []);',
     );
+    expect(app).toContain('const switchTab = useCallback((t: Tab) => setStack([{ name: t } as Route]), []);');
   });
 
-  it('列表直接编辑：onEdit 设置 origin=list 后开编辑表单', () => {
-    expect(s(app, "onEdit={(r)=>{setEditOrigin('list');setEditingReport(r);}}")).toBe(true);
-    expect(app).toContain("setEditOrigin('list')");
-    expect(app).toContain('setEditingReport(r)');
+  it('列表 onView/onEdit 均 push（进入详情/编辑，不破坏列表层级）', () => {
+    expect(s(app, "onCreate={() => push({ name: 'reportEdit', report: null })}")).toBe(true);
+    expect(s(app, "onEdit={(r) => push({ name: 'reportEdit', report: r })}")).toBe(true);
+    expect(s(app, "onView={(r) => push({ name: 'reportDetail', report: r })}")).toBe(true);
   });
 
-  it('详情进入编辑：openEditFromDetail 设置 origin=detail 且不清空 readOnlyReport（作为返回目标）', () => {
-    expect(app).toContain("setEditOrigin('detail')");
-    expect(app).toContain('setEditingReport(r)');
-    // 不再清空 readOnlyReport
-    expect(app).not.toMatch(/openEditFromDetail[\s\S]{0,80}setReadOnlyReport\(null\)/);
-  });
-
-  it('渲染优先级不变：editingReport 优先于 readOnlyReport（编辑时两者并存仍渲染编辑表单）', () => {
-    expect(app).toContain('creatingReport || editingReport ?');
-    expect(app).toContain('readOnlyReport ?');
-    expect(app).toContain('<ReportReview');
-    expect(app).toContain('editingReport={editingReport}');
+  it('详情 onClose 返回上一页（pop），onEdit 进入编辑（push）', () => {
+    expect(s(app, 'onClose={pop}')).toBe(true);
+    expect(s(app, "onEdit={(r) => push({ name: 'reportEdit', report: r })}")).toBe(true);
   });
 });
 
-describe('closeForm 按来源返回目的页', () => {
-  it('closeForm 记录 origin 与 readOnlyReport?.id，并清空 editingReport/creatingReport/editOrigin', () => {
-    expect(app).toContain('const origin = editOrigin;');
-    expect(app).toContain('const roId = readOnlyReport?.id;');
-    expect(app).toContain("setEditOrigin('list')");
-    expect(app).toContain('setEditingReport(null)');
-    expect(app).toContain('setCreatingReport(false)');
+describe('closeReportForm：保存/取消返回上一页，保存后刷新返回目标', () => {
+  it('编辑/新建 onDone 走 closeReportForm（pop 回上一页）', () => {
+    expect(app).toContain('onDone={closeReportForm}');
+    expect(app).toContain('const closeReportForm = async (saved: boolean) => {');
+    expect(app).toContain('const target = stack[stack.length - 2];');
   });
 
-  it('origin=detail 且保存成功：用 db.reports.get(roId) 重载最新报告并 setReadOnlyReport', () => {
-    expect(app).toContain("origin === 'detail' && roId");
-    expect(app).toContain('const fresh = await db.reports.get(roId);');
-    expect(app).toContain('if (fresh) setReadOnlyReport(fresh);');
+  it('保存成功且返回目标为详情页：用 db.reports.get 重载最新报告', () => {
+    expect(app).toContain("target?.name === 'reportDetail'");
+    expect(app).toContain('const fresh = await db.reports.get(target.report.id);');
+    expect(app).toContain("{ name: 'reportDetail', report: fresh }");
   });
 
-  it('origin=detail 取消（saved=false）也保留 readOnlyReport（编辑时未清空）从而回到详情页', () => {
-    // saved 分支仅在 reload 时使用；取消时 readOnlyReport 仍在 → 详情页渲染
-    expect(app).toContain('if (saved) {\n        try {');
-    expect(app).toContain('if (saved) bump();');
+  it('保存成功后调用 bump()，且最终 pop() 返回上一页', () => {
+    expect(app).toContain('if (saved) {');
+    expect(app).toContain('bump();');
+    expect(app).toContain('pop();');
   });
 
-  it('origin=list（列表直接编辑/新建）保持 readOnlyReport 为 null（回到列表）', () => {
-    // closeForm 的 else 分支（非 detail 来源）清空只读详情 → 回到列表
-    const closeFormStart = app.indexOf('const closeForm');
-    const elseIdx = app.indexOf('} else {', closeFormStart);
-    expect(elseIdx).toBeGreaterThan(closeFormStart);
-    const tail = app.slice(elseIdx, elseIdx + 160);
-    expect(tail).toContain('setReadOnlyReport(null)');
+  it('趋势 gotoReport 也是 push（进入详情，返回 pop 回到趋势且筛选状态保留）', () => {
+    expect(s(app, "gotoReport={(r) => push({ name: 'reportDetail', report: r })}")).toBe(true);
+    // 趋势筛选状态提升到 App 层（受控），栈 pop 回趋势时状态不丢
+    expect(app).toContain('const [trendFilter, setTrendFilter] = useState');
+    expect(app).toContain('memberId={trendFilter.memberId}');
+    expect(app).toContain('name={trendFilter.name}');
+    expect(app).toContain('onFilterChange={(patch) => setTrendFilter((f) => ({ ...f, ...patch }))}');
   });
+});
 
-  it('bump() 逻辑保持：保存成功后触发刷新', () => {
-    expect(app).toContain('if (saved) bump();');
+describe('tab 切换清空栈回到根', () => {
+  it('主导航点击 switchTab（回到该 tab 根，丢弃报告子栈）', () => {
+    expect(app).toContain('onClick={() => switchTab(t.key)}');
+    // activeTab 把 reportDetail/reportEdit 归入 reports
+    expect(app).toContain("current.name === 'reportDetail' || current.name === 'reportEdit'");
   });
 });
