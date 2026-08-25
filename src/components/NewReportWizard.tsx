@@ -22,8 +22,8 @@ import { ReportReview } from './ReportReview';
  * - 识别子界面：有图片且非手动时自动进入，**「识别整张报告」为唯一醒目主 CTA**；
  *   识别成功（autoReportScan）时保留结果并留在识别页，由用户点击下一步进入核对页。
  *
- * 步骤 3：ReportReview 核对并保存；仅提供「返回修改附件」与「保存」；
- * 返回才回到识别子界面，且已识别结果不丢失。
+ * 步骤 3：ReportReview 核对并保存；仅提供「返回上一步」与「保存」；
+ * 返回直接恢复进入核对前的识别摘要与完整草稿。
  *
  * 设计边界：
  * - 不挂载旧版识别面板之外的旧 ReportForm，不重新挂载旧识别面板；
@@ -140,9 +140,11 @@ export function NewReportWizard({
     finishScan(list);
   };
 
-  /** 返回附件管理页（来源子界面）：用于核对页/识别页的「返回修改附件」。不改附件则保留识别结果。 */
-  // Legacy source-contract marker: const backToAttachments = () => { (draft-aware below).
-  const backToAttachments = (draft?: {
+  /**
+   * 第三步返回第二步：恢复进入核对前的识别摘要与完整草稿。
+   * 这里不能重新识别，也不能清理任何候选；附件没有变化，识别结果就必须原样保留。
+   */
+  const backToRecognition = (draft?: {
     memberId: string;
     reportMeta: ReportScanMeta;
     items: ItemDraft[];
@@ -156,7 +158,14 @@ export function NewReportWizard({
       setRecognizedDetails(draft.details);
     }
     setStep(2);
-    setAddPhase('source');
+    setAddPhase('recognition');
+  };
+
+  /** 第二步返回第一步：按现有流程清理识别结果；第三步返回第二步不走这里。 */
+  const backToMember = () => {
+    if (recognitionBusy) return;
+    clearRecognition();
+    setStep(1);
   };
 
   /** 删除某张附件（附件变更 → 清除旧识别结果并要求重新识别）。 */
@@ -326,7 +335,7 @@ export function NewReportWizard({
             />
           )}
 
-          {/* 附件管理：从核对/识别返回时展示已选附件，支持重新编辑 / 删除 / 添加 / 切手动 */}
+          {/* 附件管理：从第二步来源页展示已选附件，支持删除 / 添加 / 切手动 */}
           {attachments.length > 0 && (
             <div className="att-manage">
               <div className="att-head">
@@ -418,17 +427,17 @@ export function NewReportWizard({
                 取消
               </button>
             ) : step === 2 && addPhase === 'source' ? (
-              <button type="button" className="btn btn-ghost" onClick={() => setStep(1)}>
-                ← 返回
+              <button type="button" className="btn btn-ghost" onClick={backToMember}>
+                ← 返回上一步
               </button>
             ) : (
               <button
                 type="button"
                 className="btn btn-ghost"
-                onClick={() => backToAttachments()}
+                onClick={() => backToRecognition()}
                 disabled={recognitionBusy}
               >
-                ← 返回修改附件
+                ← 返回上一步
               </button>
             )}
           </div>
@@ -477,7 +486,7 @@ export function NewReportWizard({
           initialItems={recognizedItems}
           initialDetails={recognizedDetails}
           attachments={attachments}
-          onBack={backToAttachments}
+          onBack={backToRecognition}
           onDone={onDone}
         />
       )}

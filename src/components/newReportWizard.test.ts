@@ -14,7 +14,7 @@ import { describe, expect, it } from 'vitest';
  * - 识别页「识别整张报告」为唯一醒目主 CTA（reportModeOnly + autoReportScan），不挂任何编辑器；
  * - 识别成功（autoReportScan）自动带结果进入核对页，无「确认识别/下一步」二次确认；
  * - 识别失败重试、识别进行中禁用返回/取消/冲突操作；
- * - 核对页仅提供返回修改附件与保存，返回不丢已识别结果。
+ * - 核对页仅提供返回上一步与保存，返回恢复完整识别摘要与草稿。
  */
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -118,11 +118,14 @@ describe('新建报告向导：选图后原图直接进入附件预览与识别�
   });
 });
 
-describe('返回修改附件：跳回附件管理页，支持删除/添加/切手动，改附件才清识别结果', () => {
-  it('核对页「返回修改附件」回到附件管理页（backToAttachments → addPhase source），而非只回识别页', () => {
-    expect(wizard).toContain('const backToAttachments = () => {');
-    expect(wizard).toContain("setAddPhase('source')");
-    expect(wizard).toContain('onBack={backToAttachments}');
+describe('返回上一步：附件修改与识别草稿恢复边界', () => {
+  it('第三步「返回上一步」回到识别摘要页（backToRecognition → addPhase recognition），而非重新识别', () => {
+    expect(wizard).toContain('const backToRecognition = (draft?: {');
+    expect(wizard).toContain("setAddPhase('recognition')");
+    expect(wizard).toContain('onBack={backToRecognition}');
+    expect(wizard).toContain('initialReportMeta={recognizedReportMeta ?? undefined}');
+    expect(wizard).toContain('initialItems={recognizedItems}');
+    expect(wizard).toContain('initialDetails={recognizedDetails}');
   });
 
   it('附件管理页显示已选附件并支持删除 / 添加 / 切手动', () => {
@@ -231,10 +234,12 @@ describe('新建报告向导：第 3 步重新设计的「核对并保存」页�
     expect(review).not.toContain('<ReportRecognitionPanel');
   });
 
-  it('核对页仅提供「返回修改附件」与「保存」；返回回到附件管理页，且已识别结果不丢失', () => {
-    expect(wizard).toContain('onBack={backToAttachments}');
-    expect(wizard).toContain('← 返回修改附件');
-    // 返回不改附件则保留已识别结果（不重置 recognizedItems）
+  it('核对页提供「返回上一步」；返回识别摘要页且已识别结果不丢失', () => {
+    expect(wizard).toContain('onBack={backToRecognition}');
+    expect(review).toContain('← 返回上一步');
+    expect(wizard).toContain('setRecognizedItems(draft.items)');
+    expect(wizard).toContain('setRecognizedDetails(draft.details)');
+    expect(wizard).toContain('setRecognizedReportMeta(draft.reportMeta)');
     expect(wizard).toContain('未改附件则保留识别结果');
   });
 });

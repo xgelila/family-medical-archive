@@ -894,6 +894,7 @@ export function ReportReview({
           <button
             type="button"
             className="btn btn-ghost"
+            aria-label="返回上一步"
             onClick={() => onBack({
               memberId,
               reportMeta: {
@@ -914,7 +915,7 @@ export function ReportReview({
             })}
             disabled={busy}
           >
-            ← 返回修改附件
+            ← 返回上一步
           </button>
         )}
         <button
