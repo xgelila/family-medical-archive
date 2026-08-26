@@ -10,7 +10,8 @@ import { describe, expect, it } from 'vitest';
  * 恢复清晰的信息层级：
  * - 成员名字是列表主信息 / 身份信息，使用无胶囊的正文强调层级（.report-member），
  *   不复用普通报告类型 chip（chip/chip-info）；
- * - 报告大类使用独立视觉（.report-kind 深中性胶囊），与报告类型 chip、状态标签明确区分；
+ * - 报告大类使用独立 plain class（.report-kind，不加胶囊），与详情「报告大类」一致；
+ *    保持与报告类型 chip、状态标签明确区分；
  * - 报告类型保持青色 chip（Chip tone="info"），但**不**被渲染成成员标签（.member-tag）。
  */
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -37,9 +38,13 @@ describe('报告列表信息层级', () => {
     expect(memberLine).not.toContain('tone="info"');
   });
 
-  it('报告大类使用独立视觉 .report-kind，不复用报告类型 chip', () => {
+  it('报告大类使用独立 plain class .report-kind，不复用报告类型 chip', () => {
     expect(manager).toContain('<span className="report-kind">');
     expect(manager).toContain("{r.reportKind === 'imaging' ? '检查' : '检验'}");
+    const kindLine = manager.split('\n').find((l) => l.includes('report-kind'));
+    expect(kindLine).toBeTruthy();
+    expect(kindLine).not.toContain('<Chip');
+    expect(kindLine).not.toContain('tone="info"');
   });
 
   it('负例：报告类型不被渲染成成员标签（.member-tag），仍以 chip 呈现', () => {
@@ -47,18 +52,23 @@ describe('报告列表信息层级', () => {
     expect(manager).not.toContain('<Chip key={t} className="member-tag"');
   });
 
-  it('CSS 定义 .report-member / .report-kind 且与 chip-info、member-tag 视觉层级不同', () => {
-    const block = styles.slice(styles.indexOf('.member-tag {'));
-    expect(block).toContain('.report-member {');
-    expect(block).toContain('.report-member-missing {');
+  it('CSS 定义 .report-member / .report-kind，报告大类为独立 plain meta 且无胶囊属性', () => {
+    const block = styles.slice(styles.indexOf('.report-kind {'));
     expect(block).toContain('.report-kind {');
-    // 报告大类（深中性）与报告类型 chip（青色）颜色来源不同，避免同色
+    // 报告大类为独立 plain class：无胶囊背景 / 圆角 / 内边距 / 白字
     const kindBlock = block.slice(block.indexOf('.report-kind {'), block.indexOf('.report-kind {') + 200);
-    expect(kindBlock).toContain('var(--ink-soft)');
-    // chip-info 使用青色
+    expect(kindBlock).not.toContain('background');
+    expect(kindBlock).not.toContain('border-radius');
+    expect(kindBlock).not.toContain('padding');
+    expect(kindBlock).not.toContain('#fff');
+    // 负例：报告大类复用次级文字 / muted，非青色 chip 胶囊
+    expect(kindBlock).not.toContain('var(--blue-light)');
+    // 负例：报告大类仍与 member-tag 胶囊视觉层级不同
+    expect(styles).toContain('.report-member {');
+    expect(styles).toContain('.report-member-missing {');
+    // chip-info 仍为青色胶囊
     const chipInfo = styles.slice(styles.indexOf('.chip-info {'), styles.indexOf('.chip-info {') + 200);
     expect(chipInfo).toContain('var(--blue-light)');
-    expect(chipInfo).not.toContain('var(--ink-soft)');
   });
 
   it('列表摘要入口触摸目标仍至少 44px（移动端不受影响）', () => {

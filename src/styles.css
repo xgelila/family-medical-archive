@@ -753,16 +753,12 @@ a,
   color: var(--danger);
 }
 
-/* 报告大类标签：深中性胶囊，与青色报告类型 chip、琥珀色状态 chip 明确区分。 */
+/* 报告大类标签：轻量次级文字（plain meta），与详情「报告大类」一致，不加胶囊。 */
 .report-kind {
-  display: inline-block;
-  background: var(--ink-soft);
-  color: #fff;
-  border-radius: 6px;
-  padding: 1px 8px;
-  font-size: 12px;
+  color: var(--muted);
+  font-size: 13px;
   font-weight: 600;
-  margin-top: 1px;
+  white-space: nowrap;
 }
 
 .att-row {
