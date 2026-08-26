@@ -52,7 +52,8 @@ describe('剩余页面图标统一为 lucide-react（移除此前的 emoji/字�
 
   it('数据管理：导出/导入/载入示例用 lucide 图标并保留文字', () => {
     expect(dataManager).toContain('<Download');
-    expect(dataManager).toContain('导出全部数据（JSON）');
+    expect(dataManager).toContain('普通导出（JSON）');
+    expect(dataManager).toContain('密码保护导出');
     expect(dataManager).toContain('<Upload');
     expect(dataManager).toContain('导入 JSON（覆盖）');
     expect(dataManager).toContain('<FlaskConical');

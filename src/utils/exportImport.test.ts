@@ -10,7 +10,13 @@ import {
   type ReportItem,
   type SerializedAttachment,
 } from '../types';
-import { buildCleanImport, validatePayload } from './exportImport';
+import {
+  buildCleanImport,
+  decryptExport,
+  encryptExport,
+  isEncryptedExport,
+  validatePayload,
+} from './exportImport';
 
 const member: Member = {
   id: 'm1',
@@ -92,6 +98,32 @@ function payload(
     customReportTypes: over.customReportTypes ?? [],
   };
 }
+
+describe('密码保护备份', () => {
+  it('加密往返恢复原 payload，且包外不暴露健康字段', async () => {
+    const original = payload({ reports: [report('r1', ['a1'])], items: [item()], attachments: [attachment('a1', 'r1')] });
+    const encrypted = await encryptExport(original, 'backup-password');
+    expect(isEncryptedExport(encrypted)).toBe(true);
+    expect(JSON.stringify(encrypted)).not.toContain('张三');
+    expect(JSON.stringify(encrypted)).not.toContain('甲医院');
+    expect(JSON.stringify(encrypted)).not.toContain('促甲状腺激素');
+    expect(JSON.stringify(encrypted)).not.toContain('attachments');
+    await expect(decryptExport(encrypted, 'backup-password')).resolves.toEqual(original);
+  });
+
+  it('每次导出使用不同 salt 和 iv，错误密码拒绝解密', async () => {
+    const first = await encryptExport(payload(), 'backup-password');
+    const second = await encryptExport(payload(), 'backup-password');
+    expect(first.salt).not.toBe(second.salt);
+    expect(first.iv).not.toBe(second.iv);
+    await expect(decryptExport(first, 'wrong-password')).rejects.toThrow('密码错误或加密备份已损坏。');
+  });
+
+  it('明文备份仍由既有 validatePayload 路径兼容', () => {
+    expect(isEncryptedExport(payload())).toBe(false);
+    expect(validatePayload(payload()).ok).toBe(true);
+  });
+});
 
 describe('validatePayload', () => {
   it('接受合法 payload，拒绝格式/版本/结构错误', () => {

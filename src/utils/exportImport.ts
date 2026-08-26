@@ -42,7 +42,114 @@ async function payloadHash(payload: Omit<ExportPayload, 'integrity'>): Promise<s
   return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-export function downloadJson(payload: ExportPayload, filename: string): void {
+export interface EncryptedExportPayload {
+  format: 'family-medical-archive-encrypted';
+  version: 1;
+  algorithm: 'AES-GCM';
+  kdf: 'PBKDF2-SHA-256';
+  iterations: number;
+  salt: string;
+  iv: string;
+  ciphertext: string;
+}
+
+const ENCRYPTED_EXPORT_FORMAT = 'family-medical-archive-encrypted' as const;
+const ENCRYPTED_EXPORT_VERSION = 1 as const;
+const PBKDF2_ITERATIONS = 120_000;
+
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = '';
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary);
+}
+
+function base64ToBytes(value: string): Uint8Array {
+  if (!/^[A-Za-z0-9+/]*={0,2}$/.test(value) || value.length % 4 !== 0) {
+    throw new Error('加密备份编码无效');
+  }
+  const binary = atob(value);
+  return Uint8Array.from(binary, (char) => char.charCodeAt(0));
+}
+
+async function deriveBackupKey(password: string, salt: Uint8Array, iterations: number): Promise<CryptoKey> {
+  const material = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(password),
+    'PBKDF2',
+    false,
+    ['deriveKey'],
+  );
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt, iterations, hash: 'SHA-256' },
+    material,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt'],
+  );
+}
+
+export async function encryptExport(payload: ExportPayload, password: string): Promise<EncryptedExportPayload> {
+  if (!password) throw new Error('请输入备份密码。');
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await deriveBackupKey(password, salt, PBKDF2_ITERATIONS);
+  const encrypted = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv },
+    key,
+    new TextEncoder().encode(JSON.stringify(payload)),
+  );
+  return {
+    format: ENCRYPTED_EXPORT_FORMAT,
+    version: ENCRYPTED_EXPORT_VERSION,
+    algorithm: 'AES-GCM',
+    kdf: 'PBKDF2-SHA-256',
+    iterations: PBKDF2_ITERATIONS,
+    salt: bytesToBase64(salt),
+    iv: bytesToBase64(iv),
+    ciphertext: bytesToBase64(new Uint8Array(encrypted)),
+  };
+}
+
+export async function decryptExport(obj: unknown, password: string): Promise<ExportPayload> {
+  if (!password) throw new Error('需要输入备份密码。');
+  if (!obj || typeof obj !== 'object') throw new Error('不是有效的加密备份。');
+  const encrypted = obj as Partial<EncryptedExportPayload>;
+  if (
+    encrypted.format !== ENCRYPTED_EXPORT_FORMAT ||
+    encrypted.version !== ENCRYPTED_EXPORT_VERSION ||
+    encrypted.algorithm !== 'AES-GCM' ||
+    encrypted.kdf !== 'PBKDF2-SHA-256' ||
+    typeof encrypted.iterations !== 'number' ||
+    encrypted.iterations < 10_000 ||
+    encrypted.iterations > 1_000_000 ||
+    typeof encrypted.salt !== 'string' ||
+    typeof encrypted.iv !== 'string' ||
+    typeof encrypted.ciphertext !== 'string'
+  ) throw new Error('加密备份格式无效。');
+  try {
+    const salt = base64ToBytes(encrypted.salt);
+    const iv = base64ToBytes(encrypted.iv);
+    if (salt.length !== 16 || iv.length !== 12) throw new Error('加密参数无效');
+    const key = await deriveBackupKey(password, salt, encrypted.iterations);
+    const plaintext = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv },
+      key,
+      base64ToBytes(encrypted.ciphertext),
+    );
+    const parsed = JSON.parse(new TextDecoder().decode(plaintext)) as unknown;
+    const validated = validatePayload(parsed);
+    if (!validated.ok) throw new Error(validated.error);
+    return validated.payload;
+  } catch {
+    throw new Error('密码错误或加密备份已损坏。');
+  }
+}
+
+export function isEncryptedExport(value: unknown): value is EncryptedExportPayload {
+  return !!value && typeof value === 'object' && (value as { format?: unknown }).format === ENCRYPTED_EXPORT_FORMAT;
+}
+
+export function downloadJson(payload: unknown, filename: string): void {
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');

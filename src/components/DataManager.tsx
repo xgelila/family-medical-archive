@@ -1,7 +1,15 @@
 import { useRef, useState } from 'react';
 import { Download, FlaskConical, Upload } from 'lucide-react';
 import { db } from '../db';
-import { buildExport, downloadJson, importPayload, type ImportResult } from '../utils/exportImport';
+import {
+  buildExport,
+  decryptExport,
+  downloadJson,
+  encryptExport,
+  importPayload,
+  isEncryptedExport,
+  type ImportResult,
+} from '../utils/exportImport';
 import { loadSampleData } from '../sampleData';
 import { todayISO } from '../utils/dates';
 import { ConfirmButton } from './Kit';
@@ -29,20 +37,47 @@ export function DataManager({ bump }: { bump: () => void }) {
     }
   };
 
+  const doEncryptedExport = async () => {
+    const password = window.prompt('设置备份密码（密码不会保存；忘记密码将无法恢复此备份）：');
+    if (password === null) return;
+    if (!password) {
+      setMessage({ tone: 'err', text: '请输入备份密码。' });
+      return;
+    }
+    setBusy(true);
+    setMessage(null);
+    try {
+      const payload = await buildExport();
+      const encrypted = await encryptExport(payload, password);
+      downloadJson(encrypted, `家庭体检档案-加密备份-${todayISO()}.json`);
+      setMessage({
+        tone: 'ok',
+        text: `已导出密码保护备份：${payload.members.length} 位成员、${payload.reports.length} 份报告。密码不会保存在本设备中。`,
+      });
+    } catch (e) {
+      setMessage({ tone: 'err', text: `加密导出失败：${e instanceof Error ? e.message : String(e)}` });
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const onImportFile = async (file: File) => {
     setBusy(true);
     setMessage(null);
     try {
       const text = await file.text();
       const obj = JSON.parse(text) as unknown;
-      const candidate = obj as { members?: unknown[]; reports?: unknown[]; items?: unknown[]; attachments?: unknown[] };
+      const payload = isEncryptedExport(obj)
+        ? await decryptExport(obj, window.prompt('输入加密备份密码：') ?? '')
+        : obj;
+      const candidate = payload as { members?: unknown[]; reports?: unknown[]; items?: unknown[]; attachments?: unknown[] };
       const isEmptyBackup = [candidate.members, candidate.reports, candidate.items, candidate.attachments]
         .every((v) => Array.isArray(v) && v.length === 0);
       const confirmText = isEmptyBackup
         ? '警告：这是一个合法但完全为空的备份。导入将【覆盖并清空】当前本机全部数据，且不可自动恢复。确定继续吗？'
         : '导入将【覆盖】当前本机全部数据（成员/报告/条目/附件）。确定继续吗？';
       if (!window.confirm(confirmText)) return;
-      const result: ImportResult = await importPayload(obj);
+      const result: ImportResult = await importPayload(payload);
       if (result.ok) {
         setMessage({
           tone: 'ok',
@@ -124,10 +159,9 @@ export function DataManager({ bump }: { bump: () => void }) {
   return (
     <div className="data-manager">
       <div className="card form-card">
-        <h4>导出 / 导入（JSON，含附件）</h4>
+        <h4>导出 / 导入（含附件）</h4>
         <p className="dim">
-          导出文件为单个 JSON，包含全部成员、报告、检查条目以及附件（图片/PDF 以 base64
-          内嵌，可在其他浏览器导入还原）。 导出文件请自行妥善保管——它包含完整健康资料。
+          普通导出为可直接导入的 JSON；密码保护备份会加密全部健康资料。密码不会保存，忘记后无法恢复。
         </p>
         <div className="btn-row">
           <button
@@ -136,7 +170,15 @@ export function DataManager({ bump }: { bump: () => void }) {
             disabled={busy}
             onClick={() => void doExport()}
           >
-            <Download size={16} strokeWidth={2} aria-hidden="true" /> 导出全部数据（JSON）
+            <Download size={16} strokeWidth={2} aria-hidden="true" /> 普通导出（JSON）
+          </button>
+          <button
+            type="button"
+            className="btn"
+            disabled={busy}
+            onClick={() => void doEncryptedExport()}
+          >
+            <Download size={16} strokeWidth={2} aria-hidden="true" /> 密码保护导出
           </button>
           <button
             type="button"
