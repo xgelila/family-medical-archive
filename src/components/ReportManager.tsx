@@ -365,11 +365,13 @@ export function ReportManager({
                       >
                         <div className="report-title">
                           {member ? (
-                            <span className="member-tag">{member.name}</span>
+                            <span className="report-member">{member.name}</span>
                           ) : (
-                            <span className="member-tag member-tag-missing">成员缺失</span>
+                            <span className="report-member report-member-missing">成员缺失</span>
                           )}
-                          <Chip tone="info">{r.reportKind === 'imaging' ? '检查' : '检验'}</Chip>
+                          <span className="report-kind">
+                            {r.reportKind === 'imaging' ? '检查' : '检验'}
+                          </span>
                           {normalizeReportTypes(r).length > 0 ? (
                             normalizeReportTypes(r).map((t) => (
                               <Chip key={t} tone="info">

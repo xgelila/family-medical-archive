@@ -740,6 +740,31 @@ a,
   color: var(--danger);
 }
 
+/* 报告列表主信息：成员名字作为身份信息，使用无胶囊的正文强调层级，不与报告类/类型/状态标签同形。 */
+.report-member {
+  display: inline-block;
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.report-member-missing {
+  color: var(--danger);
+}
+
+/* 报告大类标签：深中性胶囊，与青色报告类型 chip、琥珀色状态 chip 明确区分。 */
+.report-kind {
+  display: inline-block;
+  background: var(--ink-soft);
+  color: #fff;
+  border-radius: 6px;
+  padding: 1px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-top: 1px;
+}
+
 .att-row {
   display: flex;
   gap: 8px;
