@@ -81,7 +81,7 @@ describe('语义分离：检验目的（testPurpose）≠ 报告类型（reportT
   });
 
   it('ReportReview 把检验目的作为独立固定字段（Field 检验目的），与报告类型分开显示', () => {
-    expect(review.replace(/\s+/g, '')).toContain('label="报告类型 / 检查类别"'.replace(/\s+/g, ''));
+    expect(review.replace(/\s+/g, '')).toContain('className="report-type-title">报告类型 / 检查类别'.replace(/\s+/g, ''));
     expect(review.replace(/\s+/g, '')).toContain('<Field label="检验目的"'.replace(/\s+/g, ''));
     expect(review).toContain('initialReportMeta?.testPurpose ??');
     expect(review).toContain('testPurpose: testPurpose.trim(),');

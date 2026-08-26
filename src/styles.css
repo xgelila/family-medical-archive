@@ -513,6 +513,66 @@ a,
   gap: 5px;
   margin-top: 6px;
 }
+/* 报告类型标题行 + 问号 tooltip（必要说明默认隐藏，hover/focus 时才显示） */
+.report-type-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.report-type-title {
+  color: var(--ink-soft);
+  font-weight: 600;
+}
+.report-type-help {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+.report-type-help:hover,
+.report-type-help:focus-visible {
+  color: var(--blue-dark);
+  background: var(--blue-tint);
+}
+.report-type-help:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 1px;
+}
+.help-tooltip {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 6px);
+  z-index: 20;
+  width: 260px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--ink);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.45;
+  text-align: left;
+  box-shadow: var(--shadow-sm);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+.report-type-help:hover .help-tooltip,
+.report-type-help:focus .help-tooltip,
+.report-type-help:focus-visible .help-tooltip {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
 .select-empty-hint {
   display: block;
   margin-top: 4px;

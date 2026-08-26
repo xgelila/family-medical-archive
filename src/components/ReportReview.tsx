@@ -39,6 +39,7 @@ import {
   ChevronDown,
   ChevronUp,
   FileText,
+  HelpCircle,
   Image as ImageIcon,
   Paperclip,
   Plus,
@@ -466,7 +467,21 @@ export function ReportReview({
         <Field label="报告日期 *">
           <input type="date" value={reportDate} onChange={(e) => setReportDate(e.target.value)} />
         </Field>
-        <Field label="报告类型 / 检查类别" hint="检验与检查报告均可多选类型（如同一张检验单既含“超敏C反应蛋白”又含“肝功能”）；至少选择一项或保留原类型">
+        <div className="field">
+          <span className="report-type-head">
+            <span className="report-type-title">报告类型 / 检查类别</span>
+            <button
+              type="button"
+              className="report-type-help"
+              aria-label="报告类型说明"
+              title="检验与检查报告均可多选类型"
+            >
+              <HelpCircle size={14} strokeWidth={2} aria-hidden="true" />
+              <span className="help-tooltip" role="tooltip">
+                检验与检查报告均可多选类型（如同一张检验单既含“超敏C反应蛋白”又含“肝功能”）；至少选择一项或保留原类型。
+              </span>
+            </button>
+          </span>
           <details className="report-type-dropdown" open={reportTypeOpen} onToggle={(e) => setReportTypeOpen(e.currentTarget.open)}>
             <summary className="report-type-summary">
               <span>{reportTypes.length ? `已选 ${reportTypes.length} 项` : '请选择'}</span>
@@ -493,8 +508,8 @@ export function ReportReview({
             </div>
           </details>
           {reportTypes.length > 0 && <div className="report-type-selected" aria-label="已选报告类型">{reportTypes.map((t) => <span key={t} className="chip">{t}</span>)}</div>}
-          {reportTypes.length === 0 && <small className="error-text" aria-live="polite">未匹配报告类型：报告仍可保存，检验项目仍可进入趋势；但按报告类型筛选/统计不会命中。建议补选已有类型，或点击下方“管理报告类型…”。</small>}
-        </Field>
+          {reportTypes.length === 0 && <small className="error-text" aria-live="polite">未匹配报告类型：报告仍可保存，检验项目仍可进入趋势；建议补选已有类型。</small>}
+        </div>
         {reportKind === 'imaging' ? (
           <Field label="检查项目">
             <input value={testPurpose} onChange={(e) => setTestPurpose(e.target.value)} placeholder="如：腹部超声检查" />
