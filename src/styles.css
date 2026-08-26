@@ -1,11 +1,12 @@
 /* 家庭体检档案 — 全局样式（本地优先 PWA，仅存本机） */
 :root {
-  /* 品牌主色：现代青绿，低饱和、更克制，凸显专业与高级感 */
-  --teal: #0f766e;
-  --teal-dark: #115e59;
-  --teal-deep: #134e4a;
-  --teal-light: #ccfbf1; /* 浅青绿：用于浅色底色 / 强调 */
-  --teal-tint: #ecfdf5; /* 极浅底纹：用于 focus ring / 悬停 */
+  /* 品牌强调色：现代 cobalt/royal blue 作为唯一强调色，冷白中性为基础 */
+  --blue: #2563eb;
+  --blue-dark: #1d4ed8;
+  --blue-deep: #1e3a8a;
+  --blue-light: #dbeafe; /* 浅蓝：用于浅色底色 / 强调 */
+  --blue-tint: #eff6ff; /* 极浅底纹：用于 focus ring / 悬停 */
+  --graphite: #111827; /* 石墨黑：深色中性（头部/徽标等） */
 
   /* 中性色：更柔和现代的描边与灰阶 */
   --ink: #0f172a;
@@ -32,7 +33,7 @@
   --border: var(--line);
   --surface: var(--card);
   --surface-muted: var(--bg-soft);
-  --accent: var(--teal);
+  --accent: var(--blue);
   --text: var(--ink);
   --text-dim: var(--muted);
 
@@ -101,7 +102,7 @@ a,
   position: sticky;
   top: 0;
   z-index: 20;
-  background: var(--teal-deep);
+  background: var(--graphite);
   color: #fff;
   padding: 12px 16px;
   box-shadow: 0 2px 12px rgba(15, 23, 42, 0.12);
@@ -156,7 +157,7 @@ a,
 
 .tab-btn.tab-active {
   background: #fff;
-  color: var(--teal-deep);
+  color: var(--blue-deep);
   font-weight: 600;
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
 }
@@ -166,8 +167,8 @@ a,
   display: flex;
   gap: 8px;
   align-items: baseline;
-  background: var(--teal-light);
-  color: var(--teal-dark);
+  background: var(--blue-light);
+  color: var(--blue-dark);
   padding: 8px 16px;
   font-size: 13px;
   line-height: 1.5;
@@ -255,9 +256,9 @@ a,
 }
 
 .btn:hover {
-  border-color: var(--teal);
-  background: var(--teal-tint);
-  color: var(--teal-dark);
+  border-color: var(--blue);
+  background: var(--blue-tint);
+  color: var(--blue-dark);
 }
 
 .btn:active {
@@ -271,17 +272,17 @@ a,
 }
 
 .btn-primary {
-  background: var(--teal);
-  border-color: var(--teal);
+  background: var(--blue);
+  border-color: var(--blue);
   color: #fff;
-  box-shadow: 0 6px 16px -8px rgba(15, 118, 110, 0.6);
+  box-shadow: 0 6px 16px -8px rgba(37, 99, 235, 0.5);
 }
 
 .btn-primary:hover {
-  background: var(--teal-dark);
-  border-color: var(--teal-dark);
+  background: var(--blue-dark);
+  border-color: var(--blue-dark);
   color: #fff;
-  box-shadow: 0 8px 20px -8px rgba(15, 118, 110, 0.65);
+  box-shadow: 0 8px 20px -8px rgba(37, 99, 235, 0.55);
 }
 
 .btn-danger {
@@ -331,7 +332,7 @@ a,
 .stat-value {
   font-size: 26px;
   font-weight: 700;
-  color: var(--teal-dark);
+  color: var(--blue-dark);
 }
 
 .stat-label {
@@ -384,8 +385,8 @@ a,
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  background: var(--teal-light);
-  color: var(--teal-dark);
+  background: var(--blue-light);
+  color: var(--blue-dark);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -542,8 +543,8 @@ a,
 .field input:focus,
 .field select:focus {
   outline: none;
-  border-color: var(--teal);
-  box-shadow: 0 0 0 3px var(--teal-tint);
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px var(--blue-tint);
 }
 
 .form-actions {
@@ -645,8 +646,8 @@ a,
 
 .member-tag {
   display: inline-block;
-  background: var(--teal-light);
-  color: var(--teal-dark);
+  background: var(--blue-light);
+  color: var(--blue-dark);
   border-radius: 6px;
   padding: 1px 8px;
   font-weight: 600;
@@ -685,8 +686,8 @@ a,
 }
 
 .att-chip:hover {
-  border-color: var(--teal);
-  color: var(--teal-dark);
+  border-color: var(--blue);
+  color: var(--blue-dark);
 }
 
 .table-wrap {
@@ -800,12 +801,12 @@ a,
 
 .thyroid-quickadd {
   margin-top: 14px;
-  background: var(--teal-tint);
-  border: 1px solid var(--teal-light);
+  background: var(--blue-tint);
+  border: 1px solid var(--blue-light);
   border-radius: 10px;
   padding: 10px 12px;
   font-size: 13px;
-  color: var(--teal-dark);
+  color: var(--blue-dark);
   line-height: 1.6;
 }
 
@@ -840,8 +841,8 @@ a,
 
 .item-edit-table input:focus {
   outline: none;
-  border-color: var(--teal);
-  box-shadow: 0 0 0 3px var(--teal-tint);
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px var(--blue-tint);
 }
 
 .value-cell {
@@ -978,8 +979,8 @@ a,
   flex: none;
   width: 22px;
   height: 22px;
-  border: 3px solid var(--teal-light);
-  border-top-color: var(--teal);
+  border: 3px solid var(--blue-light);
+  border-top-color: var(--blue);
   border-radius: 50%;
   animation: recog-spin 0.8s linear infinite;
 }
@@ -1036,8 +1037,8 @@ a,
 }
 
 .chip-info {
-  background: var(--teal-light);
-  color: var(--teal-dark);
+  background: var(--blue-light);
+  color: var(--blue-dark);
 }
 
 .chip-neutral {
@@ -1347,13 +1348,13 @@ a,
   align-items: center;
   gap: 8px;
   font-size: 13px;
-  color: var(--teal-dark, #0f766e);
+  color: var(--blue-dark, #1d4ed8);
 }
 .recog-stage .spinner {
   width: 16px;
   height: 16px;
-  border: 2px solid #99f6e4;
-  border-top-color: var(--teal, #0f766e);
+  border: 2px solid #bfdbfe;
+  border-top-color: var(--blue, #2563eb);
   border-radius: 50%;
   animation: recog-spin 0.8s linear infinite;
 }
@@ -1392,7 +1393,7 @@ a,
 }
 .ocr-progress-bar {
   height: 100%;
-  background: var(--teal, #0f766e);
+  background: var(--blue, #2563eb);
   border-radius: 4px;
   transition: width 0.2s ease;
 }
@@ -1514,7 +1515,7 @@ a:focus-visible,
 select:focus-visible,
 input:focus-visible,
 [tabindex]:focus-visible {
-  outline: 3px solid var(--teal);
+  outline: 3px solid var(--blue);
   outline-offset: 2px;
   border-radius: 6px;
 }
@@ -2080,14 +2081,14 @@ input:focus-visible,
 }
 
 .entry-primary {
-  border-color: #99f6e4;
-  background: var(--teal-light);
+  border-color: #bfdbfe;
+  background: var(--blue-light);
 }
 
 .entry-primary:hover,
 .entry-secondary:hover {
-  border-color: var(--teal);
-  box-shadow: 0 2px 6px rgba(13, 148, 136, 0.12);
+  border-color: var(--blue);
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.12);
 }
 
 .entry-secondary {
@@ -2141,8 +2142,8 @@ input:focus-visible,
   padding: 8px 12px;
   border: 1px solid var(--line);
   border-radius: 10px;
-  background: var(--teal-light);
-  color: var(--teal-dark);
+  background: var(--blue-light);
+  color: var(--blue-dark);
   font-weight: 600;
   text-align: center;
 }
@@ -2216,12 +2217,12 @@ input:focus-visible,
 }
 
 .member-pick:hover {
-  border-color: var(--teal);
+  border-color: var(--blue);
 }
 
 .member-pick.selected {
-  border-color: var(--teal);
-  background: var(--teal-light);
+  border-color: var(--blue);
+  background: var(--blue-light);
 }
 
 .member-pick-body {
@@ -2242,7 +2243,7 @@ input:focus-visible,
 }
 
 .member-pick-check {
-  color: var(--teal-dark);
+  color: var(--blue-dark);
   font-weight: 700;
 }
 
@@ -2263,12 +2264,12 @@ input:focus-visible,
 
 .entry-primary-main {
   border-width: 2px;
-  box-shadow: 0 10px 24px rgba(13, 148, 136, 0.14);
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.14);
 }
 .entry-chevron {
   margin-left: auto;
   font-size: 22px;
-  color: var(--teal);
+  color: var(--blue);
   font-weight: 700;
 }
 .wizard-busy {
@@ -2333,13 +2334,13 @@ input:focus-visible,
   text-align: left;
 }
 .source-sheet-option:hover {
-  border-color: var(--teal);
-  background: var(--teal-light);
+  border-color: var(--blue);
+  background: var(--blue-light);
 }
 .source-sheet-chevron {
   margin-left: auto;
   font-size: 20px;
-  color: var(--teal);
+  color: var(--blue);
 }
 .source-sheet-note {
   margin: 4px 0 0;
@@ -2395,13 +2396,13 @@ input:focus-visible,
   border: none;
   padding: 4px 0;
   font-size: 13px;
-  color: var(--teal-dark, #0f766e);
+  color: var(--blue-dark, #1d4ed8);
   cursor: pointer;
   text-decoration: underline;
   text-underline-offset: 2px;
 }
 .att-summary-open:hover {
-  color: var(--teal);
+  color: var(--blue);
 }
 
 /* ---------- 报告详情（附加元数据 KV 编辑） ---------- */
@@ -2427,7 +2428,7 @@ input:focus-visible,
 }
 
 .details-toggle:hover {
-  background: var(--teal-light);
+  background: var(--blue-light);
 }
 
 .details-editor {
@@ -2467,8 +2468,8 @@ input:focus-visible,
 .details-label:focus,
 .details-value:focus {
   outline: none;
-  border-color: var(--teal);
-  box-shadow: 0 0 0 3px var(--teal-tint);
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px var(--blue-tint);
 }
 
 /* ---------- 附件管理（来源子界面） ---------- */

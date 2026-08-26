@@ -40,7 +40,7 @@ describe('统一 ViewState 组件（Kit）', () => {
 
   it('复用现有 EmptyState 组件与配色 token，不引入新框架', () => {
     expect(kit).toContain('<EmptyState');
-    expect(styles).toContain('var(--teal)');
+    expect(styles).toContain('var(--blue)');
     expect(kit).not.toContain('import { styled');
   });
 });
