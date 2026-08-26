@@ -1,4 +1,4 @@
-// 生成 PWA 图标（柔和 slate/cornflower 蓝圆角方块 + 白色医疗十字），零依赖，纯 Node 标准库。
+// 生成 PWA 图标（青绿圆角方块 + 白色医疗十字），零依赖，纯 Node 标准库。
 // 用法：node scripts/gen-icons.mjs
 import { deflateSync } from 'node:zlib';
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = join(root, 'public', 'icons');
-const BRAND = [115, 152, 192, 255]; // #7398c0 柔和雾蓝/灰蓝
+const TEAL = [13, 148, 136, 255]; // #0d9488
 
 function crc32(buf) {
   const table = [];
@@ -59,10 +59,10 @@ function png(size) {
         pixels[i + 2] = 255;
         pixels[i + 3] = 255;
       } else {
-        pixels[i] = BRAND[0];
-        pixels[i + 1] = BRAND[1];
-        pixels[i + 2] = BRAND[2];
-        pixels[i + 3] = BRAND[3];
+        pixels[i] = TEAL[0];
+        pixels[i + 1] = TEAL[1];
+        pixels[i + 2] = TEAL[2];
+        pixels[i + 3] = TEAL[3];
       }
     }
   }

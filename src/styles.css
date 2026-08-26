@@ -1,33 +1,33 @@
 /* 家庭体检档案 — 全局样式（本地优先 PWA，仅存本机） */
 :root {
-  /* 品牌强调色：清亮克制的活力蓝（浅色、现代、专业），适度饱和、层次分明、不刺眼 */
-  --blue: #3b82d4; /* 主强调：边框/焦点/图表线/图标强调（更饱和的辨识蓝） */
-  --blue-dark: #2f6bb9; /* 深一档柔和蓝：强调文字/数值/悬停 */
-  --blue-deep: #255aa4; /* 深柔和蓝：激活态文字（非纯黑） */
-  --blue-light: #dceafa; /* 浅蓝：浅色底色 / 强调 */
-  --blue-tint: #eaf2fc; /* 极浅底纹：focus ring / 悬停 */
-  --blue-btn: #2f6db8; /* 主按钮底：白字对比充分（≥4.5:1） */
-  --blue-btn-hover: #275a9b; /* 主按钮悬停：更深一档 */
+  /* 品牌强调色：恢复最初版本清亮青绿（teal），层次鲜明、避免统一灰蓝 */
+  --blue: #0d9488; /* 主强调：边框/焦点/图表线/图标强调（恢复原青绿 teal） */
+  --blue-dark: #0f766e; /* 深一档青绿：强调文字/数值/悬停 */
+  --blue-deep: #0f766e; /* 深青绿：激活态文字 / 顶部导航 */
+  --blue-light: #ccfbf1; /* 浅青绿：浅色底色 / 强调 */
+  --blue-tint: #ecfdf5; /* 极浅青绿底纹：focus ring / 悬停 */
+  --blue-btn: #0d9488; /* 主按钮底：恢复青绿主色 */
+  --blue-btn-hover: #0f766e; /* 主按钮悬停：深一档 */
   --graphite: #0b1620; /* 保留备用深色（不再用于顶部导航） */
 
-  /* 中性色：正文用微软蓝灰（比纯灰更显层级、不单调）；描边带一丝蓝相 */
-  --ink: #26344e;
-  --ink-soft: #384962;
-  --muted: #5e6f87;
-  --muted-soft: #8b9bb1;
-  --line: #dde5f0;
-  --line-soft: #e9eef6;
+  /* 中性色：恢复最初版中性灰阶，描边/文字层次清晰 */
+  --ink: #0f172a;
+  --ink-soft: #334155;
+  --muted: #64748b;
+  --muted-soft: #94a3b8;
+  --line: #e2e8f0;
+  --line-soft: #eef2f7;
 
-  /* 背景与表面：微微泛蓝的干净底，贴合浅色主题 */
-  --bg: #f1f6fc;
-  --bg-soft: #f7fafd;
+  /* 背景与表面：恢复干净的中性底 */
+  --bg: #f1f5f9;
+  --bg-soft: #f8fafc;
   --card: #fff;
 
-  /* 状态色（更明快的现代语义色） */
+  /* 状态色（语义色） */
   --warn: #b45309;
-  --warn-bg: #fff7ed;
-  --danger: #d92d20;
-  --danger-bg: #fef3f2;
+  --warn-bg: #fffbeb;
+  --danger: #b91c1c;
+  --danger-bg: #fef2f2;
   --ok: #15803d;
   --ok-bg: #f0fdf4;
 
@@ -104,14 +104,11 @@ a,
   position: sticky;
   top: 0;
   z-index: 20;
-  /* 顶部导航：浅色半透明白 + 毛玻璃，正文用深蓝灰，不再使用深色石墨蓝 */
-  background: rgba(255, 255, 255, 0.72);
-  -webkit-backdrop-filter: blur(14px) saturate(1.15);
-  backdrop-filter: blur(14px) saturate(1.15);
-  color: var(--ink);
+  /* 顶部导航：恢复最初版本青绿实色头部 + 白字，色彩层次鲜明 */
+  background: var(--blue);
+  color: #fff;
   padding: 12px 16px;
-  box-shadow: 0 1px 2px rgba(21, 32, 51, 0.04), 0 8px 24px rgba(21, 32, 51, 0.05);
-  border-bottom: 1px solid var(--line-soft);
+  box-shadow: var(--shadow);
 }
 
 .app-title {
@@ -148,8 +145,8 @@ a,
   align-items: center;
   gap: 6px;
   border: 1px solid transparent;
-  background: transparent;
-  color: var(--ink-soft);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
   padding: 7px 12px;
   border-radius: 8px;
   cursor: pointer;
@@ -157,16 +154,16 @@ a,
 }
 
 .tab-btn:hover {
-  background: var(--blue-tint);
-  color: var(--blue-dark);
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
 }
 
 .tab-btn.tab-active {
   background: #fff;
   border-color: var(--line);
-  color: var(--blue-deep);
+  color: var(--blue-dark);
   font-weight: 600;
-  box-shadow: 0 1px 2px rgba(21, 32, 51, 0.05), 0 4px 12px rgba(21, 32, 51, 0.06);
+  box-shadow: var(--shadow-sm);
 }
 
 /* ---------- 提示条 ---------- */
@@ -299,14 +296,14 @@ a,
   background: var(--blue-btn);
   border-color: var(--blue-btn);
   color: #fff;
-  box-shadow: 0 6px 16px -8px rgba(115, 152, 192, 0.5);
+  box-shadow: 0 6px 16px -8px rgba(13, 148, 136, 0.5);
 }
 
 .btn-primary:hover {
   background: var(--blue-btn-hover);
   border-color: var(--blue-btn-hover);
   color: #fff;
-  box-shadow: 0 8px 20px -8px rgba(115, 152, 192, 0.55);
+  box-shadow: 0 8px 20px -8px rgba(13, 148, 136, 0.55);
 }
 
 .btn-danger {
@@ -499,7 +496,7 @@ a,
   border: none;
   border-radius: 6px;
   background: transparent;
-  color: var(--accent, #3b82d4);
+  color: var(--accent, #0d9488);
   text-align: left;
   cursor: pointer;
 }
@@ -1432,13 +1429,13 @@ a,
   align-items: center;
   gap: 8px;
   font-size: 13px;
-  color: var(--blue-dark, #5d82a9);
+  color: var(--blue-dark, #0f766e);
 }
 .recog-stage .spinner {
   width: 16px;
   height: 16px;
-  border: 2px solid #c3d4e6;
-  border-top-color: var(--blue, #3b82d4);
+  border: 2px solid #99f6e4;
+  border-top-color: var(--blue, #0d9488);
   border-radius: 50%;
   animation: recog-spin 0.8s linear infinite;
 }
@@ -1477,7 +1474,7 @@ a,
 }
 .ocr-progress-bar {
   height: 100%;
-  background: var(--blue, #3b82d4);
+  background: var(--blue, #0d9488);
   border-radius: 4px;
   transition: width 0.2s ease;
 }
@@ -2165,14 +2162,14 @@ input:focus-visible,
 }
 
 .entry-primary {
-  border-color: #c3d4e6;
+  border-color: #99f6e4;
   background: var(--blue-light);
 }
 
 .entry-primary:hover,
 .entry-secondary:hover {
   border-color: var(--blue);
-  box-shadow: 0 2px 6px rgba(115, 152, 192, 0.12);
+  box-shadow: 0 2px 6px rgba(13, 148, 136, 0.12);
 }
 
 .entry-secondary {
@@ -2348,7 +2345,7 @@ input:focus-visible,
 
 .entry-primary-main {
   border-width: 2px;
-  box-shadow: 0 10px 24px rgba(115, 152, 192, 0.14);
+  box-shadow: 0 10px 24px rgba(13, 148, 136, 0.14);
 }
 .entry-chevron {
   margin-left: auto;
@@ -2480,7 +2477,7 @@ input:focus-visible,
   border: none;
   padding: 4px 0;
   font-size: 13px;
-  color: var(--blue-dark, #5d82a9);
+  color: var(--blue-dark, #0f766e);
   cursor: pointer;
   text-decoration: underline;
   text-underline-offset: 2px;
