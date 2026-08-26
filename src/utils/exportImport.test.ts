@@ -15,6 +15,7 @@ import {
   decryptExport,
   encryptExport,
   isEncryptedExport,
+  jsonFile,
   validatePayload,
 } from './exportImport';
 
@@ -100,6 +101,11 @@ function payload(
 }
 
 describe('密码保护备份', () => {
+  it('生成可保存到文件的 JSON File，包含正确 MIME 和文件名', () => {
+    const file = jsonFile({ format: 'test' }, 'backup.json');
+    expect(file.name).toBe('backup.json');
+    expect(file.type).toBe('application/json');
+  });
   it('加密往返恢复原 payload，且包外不暴露健康字段', async () => {
     const original = payload({ reports: [report('r1', ['a1'])], items: [item()], attachments: [attachment('a1', 'r1')] });
     const encrypted = await encryptExport(original, 'backup-password');

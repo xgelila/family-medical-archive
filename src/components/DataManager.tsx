@@ -8,6 +8,7 @@ import {
   encryptExport,
   importPayload,
   isEncryptedExport,
+  shareJsonOrDownload,
   type ImportResult,
 } from '../utils/exportImport';
 import { loadSampleData } from '../sampleData';
@@ -49,10 +50,14 @@ export function DataManager({ bump }: { bump: () => void }) {
     try {
       const payload = await buildExport();
       const encrypted = await encryptExport(payload, password);
-      downloadJson(encrypted, `家庭体检档案-加密备份-${todayISO()}.json`);
+      const filename = `家庭体检档案-加密备份-${todayISO()}.json`;
+      const result = await shareJsonOrDownload(encrypted, filename);
+      if (result === 'cancelled') return;
       setMessage({
         tone: 'ok',
-        text: `已导出密码保护备份：${payload.members.length} 位成员、${payload.reports.length} 份报告。密码不会保存在本设备中。`,
+        text: result === 'shared'
+          ? '已打开系统分享，请选择“存储到文件”并保存到 iCloud Drive。密码不会保存在本设备中。'
+          : `已下载密码保护备份：${payload.members.length} 位成员、${payload.reports.length} 份报告。密码不会保存在本设备中。`,
       });
     } catch (e) {
       setMessage({ tone: 'err', text: `加密导出失败：${e instanceof Error ? e.message : String(e)}` });
@@ -161,7 +166,7 @@ export function DataManager({ bump }: { bump: () => void }) {
       <div className="card form-card">
         <h4>导出 / 导入（含附件）</h4>
         <p className="dim">
-          普通导出为可直接导入的 JSON；密码保护备份会加密全部健康资料。密码不会保存，忘记后无法恢复。
+          普通导出为可直接导入的 JSON；密码保护备份会加密全部健康资料。手机上选择“存储到文件”即可保存到 iCloud Drive（不是自动同步）。密码不会保存，忘记后无法恢复。
         </p>
         <div className="btn-row">
           <button
@@ -178,7 +183,7 @@ export function DataManager({ bump }: { bump: () => void }) {
             disabled={busy}
             onClick={() => void doEncryptedExport()}
           >
-            <Download size={16} strokeWidth={2} aria-hidden="true" /> 密码保护导出
+            <Download size={16} strokeWidth={2} aria-hidden="true" /> 保存到文件 / iCloud
           </button>
           <button
             type="button"

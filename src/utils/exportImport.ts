@@ -149,8 +149,12 @@ export function isEncryptedExport(value: unknown): value is EncryptedExportPaylo
   return !!value && typeof value === 'object' && (value as { format?: unknown }).format === ENCRYPTED_EXPORT_FORMAT;
 }
 
+export function jsonFile(payload: unknown, filename: string): File {
+  return new File([JSON.stringify(payload, null, 2)], filename, { type: 'application/json' });
+}
+
 export function downloadJson(payload: unknown, filename: string): void {
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const blob = jsonFile(payload, filename);
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -159,6 +163,31 @@ export function downloadJson(payload: unknown, filename: string): void {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
+/** 在移动端打开系统分享面板，用户可选择“存储到文件”并保存到 iCloud Drive。 */
+export async function shareJsonOrDownload(
+  payload: unknown,
+  filename: string,
+): Promise<'shared' | 'downloaded' | 'cancelled'> {
+  const file = jsonFile(payload, filename);
+  const share = (navigator as Navigator & {
+    share?: (data: { files: File[]; title?: string }) => Promise<void>;
+    canShare?: (data: { files: File[] }) => boolean;
+  }).share;
+  const canShare = (navigator as Navigator & {
+    canShare?: (data: { files: File[] }) => boolean;
+  }).canShare;
+  if (share && (!canShare || canShare({ files: [file] }))) {
+    try {
+      await share.call(navigator, { files: [file], title: filename });
+      return 'shared';
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return 'cancelled';
+    }
+  }
+  downloadJson(payload, filename);
+  return 'downloaded';
 }
 
 /** 导出全部数据（含附件 base64 与家庭级标签映射、用户自定义报告类型） */
