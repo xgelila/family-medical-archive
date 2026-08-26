@@ -51,7 +51,7 @@ describe('本机与 Vercel 结构化协议一致', () => {
     expect(combined).toContain('reportTypes');
     expect(combined).toContain('testPurpose');
     expect(combined).toContain('imaging.exams');
-    expect(combined).toContain('convert units');
+    expect(combined).toContain('不得换算');
     expect(combined).toContain('JSON');
   });
 });

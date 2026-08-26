@@ -563,17 +563,21 @@ describe('STRUCTURE_SYSTEM_PROMPT / REPORT_STRUCTURE_SYSTEM_PROMPT（极简服�
     }
   });
 
-  it('prompt uses English extraction instructions and a fixed schema', () => {
+  it('提示词以「从文字中识别出检查单的所有检查项目和各个字段值，生成结构化数据」为核心', () => {
     expect(STRUCTURE_SYSTEM_PROMPT).toContain(
-      'Extract all test items and field values from the report text and return structured data',
+      '从文字中识别出检查单的所有检查项目和各个字段值，生成结构化数据',
     );
   });
 
-  it('prompt only requests extraction and forbids medical interpretation or conversion', () => {
-    expect(STRUCTURE_SYSTEM_PROMPT).toContain('Do not make medical judgments');
-    expect(STRUCTURE_SYSTEM_PROMPT).toContain('convert units');
-    expect(STRUCTURE_SYSTEM_PROMPT).toContain('diagnose');
-    expect(STRUCTURE_SYSTEM_PROMPT).toContain('provide treatment advice');
+  it('提示词只做「禁止类」约束，不请求诊断/治疗建议/单位换算；不含标签/受控目录上下文', () => {
+    expect(STRUCTURE_SYSTEM_PROMPT).toContain('不做');
+    expect(STRUCTURE_SYSTEM_PROMPT).toContain('诊断');
+    expect(STRUCTURE_SYSTEM_PROMPT).toContain('治疗');
+    expect(STRUCTURE_SYSTEM_PROMPT).toContain('单位换算');
+    expect(/请(?:输出|给出|提供|生成)\S*(?:诊断|治疗|建议)/.test(STRUCTURE_SYSTEM_PROMPT)).toBe(
+      false,
+    );
+    expect(/解释.{0,6}(?:结果|含义)/.test(STRUCTURE_SYSTEM_PROMPT)).toBe(false);
     // 不再包含标签/受控目录/别名上下文
     expect(STRUCTURE_SYSTEM_PROMPT).not.toContain('受控目录');
     expect(STRUCTURE_SYSTEM_PROMPT).not.toContain('recommendedLabelId');
@@ -583,11 +587,14 @@ describe('STRUCTURE_SYSTEM_PROMPT / REPORT_STRUCTURE_SYSTEM_PROMPT（极简服�
     expect(STRUCTURE_SYSTEM_PROMPT).not.toContain('别名');
   });
 
-  it('prompt requires exact source preservation without OCR correction or value inference', () => {
-    expect(STRUCTURE_SYSTEM_PROMPT).toContain('Keep sourceText and report details in the original language');
-    expect(STRUCTURE_SYSTEM_PROMPT).toContain('Preserve numbers');
-    expect(REPORT_STRUCTURE_SYSTEM_PROMPT).toContain('original language and wording');
-    expect(REPORT_STRUCTURE_SYSTEM_PROMPT).toContain('convert units');
+  it('提示词要求数值与项目字段逐字溯源，不进行 OCR 纠正或数值推断', () => {
+    expect(STRUCTURE_SYSTEM_PROMPT).toContain('逐字');
+    expect(STRUCTURE_SYSTEM_PROMPT).toContain('不得纠正');
+    expect(STRUCTURE_SYSTEM_PROMPT).toContain('1.1');
+    expect(STRUCTURE_SYSTEM_PROMPT).toContain('1.2-2.4');
+    expect(STRUCTURE_SYSTEM_PROMPT).not.toContain('Al→A1');
+    expect(REPORT_STRUCTURE_SYSTEM_PROMPT).toContain('不得纠正');
+    expect(REPORT_STRUCTURE_SYSTEM_PROMPT).toContain('不得换算');
   });
 
   it('整张报告提示词：报告信息候选字段 + 严格报告类型选项 + 无标签上下文', () => {
@@ -597,7 +604,7 @@ describe('STRUCTURE_SYSTEM_PROMPT / REPORT_STRUCTURE_SYSTEM_PROMPT（极简服�
     expect(REPORT_STRUCTURE_SYSTEM_PROMPT).toContain('YYYY-MM-DD');
     expect(REPORT_STRUCTURE_SYSTEM_PROMPT).toContain('reportType');
     expect(REPORT_STRUCTURE_SYSTEM_PROMPT).toContain(
-      'Extract the complete report information, all test items, and all field values from the report text',
+      '从文字中识别出整张报告的信息与检查单的所有检查项目和各个字段值，生成结构化数据',
     );
     expect(REPORT_STRUCTURE_SYSTEM_PROMPT).not.toContain('受控目录');
     expect(REPORT_STRUCTURE_SYSTEM_PROMPT).not.toContain('recommendedLabelId');
