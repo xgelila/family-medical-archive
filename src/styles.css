@@ -1,22 +1,47 @@
 /* 家庭体检档案 — 全局样式（本地优先 PWA，仅存本机） */
 :root {
-  --teal: #0d9488;
-  --teal-dark: #0f766e;
-  --teal-light: #ccfbf1;
+  /* 品牌主色：现代青绿，低饱和、更克制，凸显专业与高级感 */
+  --teal: #0f766e;
+  --teal-dark: #115e59;
+  --teal-deep: #134e4a;
+  --teal-light: #ccfbf1; /* 浅青绿：用于浅色底色 / 强调 */
+  --teal-tint: #ecfdf5; /* 极浅底纹：用于 focus ring / 悬停 */
+
+  /* 中性色：更柔和现代的描边与灰阶 */
   --ink: #0f172a;
   --ink-soft: #334155;
   --muted: #64748b;
-  --line: #e2e8f0;
-  --bg: #f1f5f9;
+  --muted-soft: #94a3b8;
+  --line: #e6eaf1;
+  --line-soft: #eef2f7;
+
+  /* 背景与表面 */
+  --bg: #f5f7fa;
+  --bg-soft: #f8fafc;
   --card: #fff;
+
+  /* 状态色（更明快的现代语义色） */
   --warn: #b45309;
-  --warn-bg: #fffbeb;
-  --danger: #b91c1c;
-  --danger-bg: #fef2f2;
+  --warn-bg: #fff7ed;
+  --danger: #d92d20;
+  --danger-bg: #fef3f2;
   --ok: #15803d;
   --ok-bg: #f0fdf4;
-  --radius: 12px;
-  --shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+
+  /* 兼容变量：现有组件广泛引用的回退 token，统一到此统管 */
+  --border: var(--line);
+  --surface: var(--card);
+  --surface-muted: var(--bg-soft);
+  --accent: var(--teal);
+  --text: var(--ink);
+  --text-dim: var(--muted);
+
+  /* 形状与阴影：柔和分层、克制的现代纵深 */
+  --radius: 14px;
+  --radius-sm: 10px;
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
+  --shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.07);
+  --shadow-lg: 0 12px 40px rgba(15, 23, 42, 0.16);
 }
 
 * {
@@ -40,6 +65,31 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* 现代统一交互过渡：让 hover/焦点的深浅层次更顺滑、无顿挫 */
+button,
+input,
+select,
+textarea,
+a,
+[role='button'],
+.tab-btn,
+.att-chip,
+.member-pick,
+.status-toggle,
+.source-sheet-option,
+.entry-primary,
+.entry-secondary,
+.details-toggle,
+.report-type-option,
+.report-type-manage-btn {
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease,
+    opacity 0.15s ease;
+}
+
 .app {
   display: flex;
   flex-direction: column;
@@ -51,10 +101,11 @@ body {
   position: sticky;
   top: 0;
   z-index: 20;
-  background: var(--teal);
+  background: var(--teal-deep);
   color: #fff;
   padding: 12px 16px;
-  box-shadow: var(--shadow);
+  box-shadow: 0 2px 12px rgba(15, 23, 42, 0.12);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .app-title {
@@ -100,13 +151,14 @@ body {
 }
 
 .tab-btn:hover {
-  background: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .tab-btn.tab-active {
   background: #fff;
-  color: var(--teal-dark);
+  color: var(--teal-deep);
   font-weight: 600;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
 }
 
 /* ---------- 提示条 ---------- */
@@ -198,25 +250,38 @@ body {
   line-height: 1.3;
 }
 
+.btn {
+  box-shadow: var(--shadow-sm);
+}
+
 .btn:hover {
   border-color: var(--teal);
+  background: var(--teal-tint);
   color: var(--teal-dark);
+}
+
+.btn:active {
+  transform: translateY(1px);
 }
 
 .btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 .btn-primary {
   background: var(--teal);
   border-color: var(--teal);
   color: #fff;
+  box-shadow: 0 6px 16px -8px rgba(15, 118, 110, 0.6);
 }
 
 .btn-primary:hover {
   background: var(--teal-dark);
+  border-color: var(--teal-dark);
   color: #fff;
+  box-shadow: 0 8px 20px -8px rgba(15, 118, 110, 0.65);
 }
 
 .btn-danger {
@@ -476,8 +541,9 @@ body {
 
 .field input:focus,
 .field select:focus {
-  outline: 2px solid var(--teal-light);
+  outline: none;
   border-color: var(--teal);
+  box-shadow: 0 0 0 3px var(--teal-tint);
 }
 
 .form-actions {
@@ -734,12 +800,12 @@ body {
 
 .thyroid-quickadd {
   margin-top: 14px;
-  background: #f5f3ff;
-  border: 1px solid #ddd6fe;
-  border-radius: 8px;
+  background: var(--teal-tint);
+  border: 1px solid var(--teal-light);
+  border-radius: 10px;
   padding: 10px 12px;
   font-size: 13px;
-  color: #4c1d95;
+  color: var(--teal-dark);
   line-height: 1.6;
 }
 
@@ -773,8 +839,9 @@ body {
 }
 
 .item-edit-table input:focus {
-  outline: 2px solid var(--teal-light);
+  outline: none;
   border-color: var(--teal);
+  box-shadow: 0 0 0 3px var(--teal-tint);
 }
 
 .value-cell {
@@ -969,12 +1036,12 @@ body {
 }
 
 .chip-info {
-  background: #e0f2fe;
-  color: #0369a1;
+  background: var(--teal-light);
+  color: var(--teal-dark);
 }
 
 .chip-neutral {
-  background: #f1f5f9;
+  background: var(--bg-soft);
   color: var(--muted);
 }
 
@@ -995,7 +1062,7 @@ body {
 /* ---------- 数据管理 ---------- */
 .danger-zone {
   border-color: #fecaca;
-  background: #fffbfb;
+  background: var(--danger-bg);
 }
 
 .danger-zone h4 {
@@ -1008,13 +1075,13 @@ body {
 .btn-xs {
   padding: 2px 10px;
   font-size: 12px;
-  border-radius: 5px;
-  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  border: 1px solid var(--line);
   background: #fff;
   cursor: pointer;
 }
 .btn-xs:hover {
-  background: #f1f5f9;
+  background: var(--bg-soft);
 }
 .footer-link {
   margin-left: 10px;
@@ -1078,8 +1145,8 @@ body {
   width: min(640px, 94vw);
   max-height: 86vh;
   background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.35);
+  border-radius: 16px;
+  box-shadow: var(--shadow-lg);
   padding: 14px 16px;
   overflow: hidden;
 }
@@ -1120,8 +1187,8 @@ body {
   width: min(860px, 94vw);
   height: min(88vh, 760px);
   background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.35);
+  border-radius: 16px;
+  box-shadow: var(--shadow-lg);
   padding: 14px 16px;
   overflow: hidden;
 }
@@ -1188,9 +1255,9 @@ body {
 /* ---------- 「识别数据」面板 ---------- */
 .recognition-panel {
   margin-top: 12px;
-  border: 1px solid #d9e2ec;
-  border-radius: 8px;
-  background: #fbfdff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--card);
   padding: 12px;
   display: flex;
   flex-direction: column;
@@ -1207,8 +1274,8 @@ body {
 }
 .recog-empty {
   font-size: 13px;
-  color: #92400e;
-  background: #fffbeb;
+  color: var(--warn);
+  background: var(--warn-bg);
   border: 1px solid #fde68a;
   border-radius: 6px;
   padding: 8px 10px;
@@ -1257,8 +1324,8 @@ body {
 }
 .rec-label-status {
   font-size: 10px;
-  color: #92400e;
-  background: #fffbeb;
+  color: var(--warn);
+  background: var(--warn-bg);
   border: 1px solid #fde68a;
   border-radius: 4px;
   padding: 0 4px;
@@ -1286,7 +1353,7 @@ body {
   width: 16px;
   height: 16px;
   border: 2px solid #99f6e4;
-  border-top-color: var(--teal, #0d9488);
+  border-top-color: var(--teal, #0f766e);
   border-radius: 50%;
   animation: recog-spin 0.8s linear infinite;
 }
@@ -1325,7 +1392,7 @@ body {
 }
 .ocr-progress-bar {
   height: 100%;
-  background: var(--teal, #0d9488);
+  background: var(--teal, #0f766e);
   border-radius: 4px;
   transition: width 0.2s ease;
 }
@@ -2401,7 +2468,7 @@ input:focus-visible,
 .details-value:focus {
   outline: none;
   border-color: var(--teal);
-  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.12);
+  box-shadow: 0 0 0 3px var(--teal-tint);
 }
 
 /* ---------- 附件管理（来源子界面） ---------- */
@@ -2514,7 +2581,7 @@ input:focus-visible,
   max-height: 86vh;
   background: #fff;
   border-radius: 16px 16px 0 0;
-  box-shadow: 0 -8px 40px rgba(15, 23, 42, 0.22);
+  box-shadow: var(--shadow-lg);
   overflow: hidden;
   outline: none;
 }
