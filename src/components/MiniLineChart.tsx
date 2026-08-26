@@ -51,13 +51,13 @@ export function MiniLineChart({ data, unit, height = 200, width = 560 }: Props) 
       aria-label={`趋势图（单位：${unit || '未填写'}）`}
       style={{ maxHeight: height, display: 'block' }}
     >
-      <line x1={padX} y1={padTop} x2={padX} y2={padTop + innerH} stroke="#94a3b8" strokeWidth="1" />
+      <line x1={padX} y1={padTop} x2={padX} y2={padTop + innerH} stroke="#c6bfb3" strokeWidth="1" />
       <line
         x1={padX}
         y1={padTop + innerH}
         x2={padX + innerW}
         y2={padTop + innerH}
-        stroke="#94a3b8"
+        stroke="#c6bfb3"
         strokeWidth="1"
       />
       {[0, 0.25, 0.5, 0.75, 1].map((f) => {
@@ -70,28 +70,28 @@ export function MiniLineChart({ data, unit, height = 200, width = 560 }: Props) 
               y1={y}
               x2={padX + innerW}
               y2={y}
-              stroke="#e2e8f0"
+              stroke="#e6e0d4"
               strokeWidth="1"
               strokeDasharray="3 3"
             />
-            <text x={padX - 6} y={y + 3} textAnchor="end" fontSize="10" fill="#475569">
+            <text x={padX - 6} y={y + 3} textAnchor="end" fontSize="10" fill="#7e766c">
               {v}
             </text>
           </g>
         );
       })}
       {coords.length > 1 && (
-        <path d={path} fill="none" stroke="#2563eb" strokeWidth="2" strokeLinejoin="round" />
+        <path d={path} fill="none" stroke="#7b6ec7" strokeWidth="2" strokeLinejoin="round" />
       )}
       {coords.map((c, i) => (
         <g key={i}>
-          <circle cx={c.x} cy={c.y} r="4" fill="#2563eb" stroke="#fff" strokeWidth="1.5" />
+          <circle cx={c.x} cy={c.y} r="4" fill="#7b6ec7" stroke="#fff" strokeWidth="1.5" />
           <text
             x={c.x}
             y={c.y - 9}
             textAnchor="middle"
             fontSize="10"
-            fill="#334155"
+            fill="#4a453f"
             style={{ pointerEvents: 'none' }}
           >
             {c.date} · {c.value}
@@ -105,7 +105,7 @@ export function MiniLineChart({ data, unit, height = 200, width = 560 }: Props) 
           y={height - 8}
           textAnchor={index === 0 ? 'start' : index === coords.length - 1 ? 'end' : 'middle'}
           fontSize="10"
-          fill="#475569"
+          fill="#7e766c"
         >
           {pts[index].date}
         </text>

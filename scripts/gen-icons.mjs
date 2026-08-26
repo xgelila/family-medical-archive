@@ -1,4 +1,4 @@
-// 生成 PWA 图标（钴蓝圆角方块 + 白色医疗十字），零依赖，纯 Node 标准库。
+// 生成 PWA 图标（柔和薰衣草圆角方块 + 白色医疗十字），零依赖，纯 Node 标准库。
 // 用法：node scripts/gen-icons.mjs
 import { deflateSync } from 'node:zlib';
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = join(root, 'public', 'icons');
-const BRAND = [37, 99, 235, 255]; // #2563eb
+const BRAND = [123, 110, 199, 255]; // #7b6ec7 柔和薰衣草
 
 function crc32(buf) {
   const table = [];
