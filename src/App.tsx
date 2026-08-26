@@ -41,6 +41,18 @@ type Route =
   | { name: 'trend' }
   | { name: 'data' };
 
+/**
+ * 报告编辑/新建草稿的持久化会话（keep-alive 在 App 层持有的实例标识）。
+ *
+ * 编辑/新建表单的内部状态（步骤、识别结果/检查项目、附件、blob）全部保存在组件内；
+ * 为避免「切换一级导航 → 组件卸载 → 草稿丢失」，App 在切换 Tab 期间始终保留会话，
+ * 并以稳定 key 让 editor 组件在同一位置保持挂载（仅 CSS 隐藏）。
+ * 会话仅在「保存成功」或显式「取消」时清空（见 closeReportForm / cancelEdit）。
+ */
+type EditSession =
+  | { mode: 'new' } // 新建报告向导
+  | { mode: 'edit'; report: Report }; // 编辑已有报告
+
 const TABS: { key: Tab; label: string; icon: LucideIcon }[] = [
   { key: 'overview', label: '概览', icon: Home },
   { key: 'members', label: '成员', icon: Users },
@@ -54,7 +66,54 @@ export default function App() {
   const current = stack[stack.length - 1];
   const push = useCallback((r: Route) => setStack((s) => [...s, r]), []);
   const pop = useCallback(() => setStack((s) => (s.length > 1 ? s.slice(0, -1) : s)), []);
-  const switchTab = useCallback((t: Tab) => setStack([{ name: t } as Route]), []);
+
+  // 报告编辑/新建草稿会话（App 层持久的 keep-alive 标识；切换 Tab 不被清空）。
+  const [editSession, setEditSession] = useState<EditSession | null>(null);
+
+  /** 一级导航切换：把导航栈复位到该 tab 根。
+   *  若进行中的编辑/新建草稿会话存在且目标是 reports，则恢复到
+   *  「报告列表根 + reportEdit」子栈——编辑器（keep-alive 层）随 current 变为 reportEdit
+   *  自动显示并复用原实例，草稿（表单内容/步骤/识别结果/检查项目/附件）不丢；
+   *  其他 tab 一律回到各自根。 */
+  const switchTab = useCallback(
+    (t: Tab) => {
+      if (t === 'reports' && editSession) {
+        setStack([
+          { name: 'reports' },
+          { name: 'reportEdit', report: editSession.mode === 'new' ? null : editSession.report },
+        ]);
+      } else {
+        setStack([{ name: t } as Route]);
+      }
+    },
+    [editSession],
+  );
+
+  /** 进入/恢复报告编辑或新建（report=null 表示新建）。
+   *  若已存在对应草稿会话（同为新建，或同一报告 id 的编辑），直接复用并 push 路由以
+   *  重新展示，绝不重新挂载（否则会把步骤/识别结果/检查项目/附件清空）。
+   *  opts.freshRoot 用于首页「新建第一份报告」：一并把导航栈复位到报告列表根。 */
+  const openEdit = useCallback(
+    (report: Report | null, opts?: { freshRoot?: boolean }) => {
+      setEditSession((prev) => {
+        if (prev) {
+          if (report === null && prev.mode === 'new') return prev; // 复用进行中的新建草稿
+          if (report !== null && prev.mode === 'edit' && prev.report.id === report.id)
+            return prev; // 复用同一份报告已在进行中的编辑草稿
+        }
+        return report === null ? { mode: 'new' } : { mode: 'edit', report };
+      });
+      if (opts?.freshRoot) setStack([{ name: 'reports' }, { name: 'reportEdit', report }]);
+      else push({ name: 'reportEdit', report });
+    },
+    [push],
+  );
+
+  /** 显式取消编辑器：清空草稿会话并返回上一页（取消即丢弃草稿，不保留）。 */
+  const cancelEdit = useCallback(() => {
+    setEditSession(null);
+    pop();
+  }, [pop]);
 
   // 趋势筛选状态提升到 App 层：从趋势进入报告详情再返回，筛选/图表状态不丢失。
   const [trendFilter, setTrendFilter] = useState<{ memberId: string; name: string }>({
@@ -111,6 +170,7 @@ export default function App() {
 
   /** 关闭报告编辑/新建表单：返回上一页（pop）。保存成功时刷新数据与返回目标（若为详情页）。 */
   const closeReportForm = async (saved: boolean) => {
+    setEditSession(null); // 保存成功或取消都代表本次草稿会话结束，编辑器随之卸载
     const target = stack[stack.length - 2];
     if (saved) {
       bump();
@@ -184,9 +244,7 @@ export default function App() {
             loading={overviewLoading}
             error={overviewError}
             onRetry={bump}
-            onCreate={() => {
-              setStack([{ name: 'reports' }, { name: 'reportEdit', report: null }]);
-            }}
+            onCreate={() => openEdit(null, { freshRoot: true })}
             onGoto={(t: Tab) => switchTab(t)}
           />
         )}
@@ -201,8 +259,8 @@ export default function App() {
             <ReportManager
               refreshKey={refreshKey}
               bump={bump}
-              onCreate={() => push({ name: 'reportEdit', report: null })}
-              onEdit={(r) => push({ name: 'reportEdit', report: r })}
+              onCreate={() => openEdit(null)}
+              onEdit={(r) => openEdit(r)}
               onView={(r) => push({ name: 'reportDetail', report: r })}
             />
           </>
@@ -213,26 +271,9 @@ export default function App() {
             report={current.report}
             memberName={memberName(current.report.memberId)}
             onClose={pop}
-            onEdit={(r) => push({ name: 'reportEdit', report: r })}
+            onEdit={(r) => openEdit(r)}
           />
         )}
-
-        {current.name === 'reportEdit' &&
-          (current.report === null ? (
-            <NewReportWizard
-              members={members}
-              onCancel={() => pop()}
-              onDone={closeReportForm}
-              onGoToMembers={() => switchTab('members')}
-            />
-          ) : (
-            <ReportReview
-              members={members}
-              editingReport={current.report}
-              initialMemberId={current.report.memberId}
-              onDone={closeReportForm}
-            />
-          ))}
 
         {current.name === 'trend' && (
           <>
@@ -257,6 +298,38 @@ export default function App() {
             </div>
             <DataManager bump={bump} />
           </>
+        )}
+
+        {/* 持久化的报告编辑/新建层（keep-alive）：只要存在草稿会话就保持挂载，
+            仅当 reportEdit 为当前路由时显示，否则用 editor-hidden 隐藏；
+            从而在切换一级导航后草稿（表单内容 / 步骤 / 识别结果 / 检查项目 / 附件）不丢。
+            稳定 key 保证切走再切回时组件实例不被重新挂载。 */}
+        {editSession && (
+          <div
+            key="report-editor-layer"
+            className={
+              current.name === 'reportEdit' ? 'editor-layer' : 'editor-layer editor-hidden'
+            }
+            aria-hidden={current.name !== 'reportEdit'}
+          >
+            {editSession.mode === 'new' ? (
+              <NewReportWizard
+                key="report-edit-new"
+                members={members}
+                onCancel={cancelEdit}
+                onDone={closeReportForm}
+                onGoToMembers={() => switchTab('members')}
+              />
+            ) : (
+              <ReportReview
+                key={`report-edit-${editSession.report.id}`}
+                members={members}
+                editingReport={editSession.report}
+                initialMemberId={editSession.report.memberId}
+                onDone={closeReportForm}
+              />
+            )}
+          </div>
         )}
       </main>
 

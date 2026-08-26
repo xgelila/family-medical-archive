@@ -29,18 +29,20 @@ describe('统一导航栈（Route[] + push/pop）替代平铺状态', () => {
     expect(app).toContain(
       'const pop = useCallback(() => setStack((s) => (s.length > 1 ? s.slice(0, -1) : s)), []);',
     );
-    expect(app).toContain('const switchTab = useCallback((t: Tab) => setStack([{ name: t } as Route]), []);');
+    // 一级导航切换复位到根；reports 且有进行中草稿时恢复为「报告根 + reportEdit」
+    expect(app).toContain('const switchTab = useCallback(');
+    expect(app).toContain('setStack([{ name: t } as Route]);');
   });
 
-  it('列表 onView/onEdit 均 push（进入详情/编辑，不破坏列表层级）', () => {
-    expect(s(app, "onCreate={() => push({ name: 'reportEdit', report: null })}")).toBe(true);
-    expect(s(app, "onEdit={(r) => push({ name: 'reportEdit', report: r })}")).toBe(true);
+  it('列表 onCreate/onEdit 经 openEdit 进入编辑（建立持久会话 + push 路由 reportEdit）', () => {
+    expect(s(app, "onCreate={() => openEdit(null)}")).toBe(true);
+    expect(s(app, "onEdit={(r) => openEdit(r)}")).toBe(true);
     expect(s(app, "onView={(r) => push({ name: 'reportDetail', report: r })}")).toBe(true);
   });
 
-  it('详情 onClose 返回上一页（pop），onEdit 进入编辑（push）', () => {
+  it('详情 onClose 返回上一页（pop），onEdit 经 openEdit 进入编辑（push）', () => {
     expect(s(app, 'onClose={pop}')).toBe(true);
-    expect(s(app, "onEdit={(r) => push({ name: 'reportEdit', report: r })}")).toBe(true);
+    expect(s(app, "onEdit={(r) => openEdit(r)}")).toBe(true);
   });
 });
 
@@ -49,6 +51,13 @@ describe('closeReportForm：保存/取消返回上一页，保存后刷新返回
     expect(app).toContain('onDone={closeReportForm}');
     expect(app).toContain('const closeReportForm = async (saved: boolean) => {');
     expect(app).toContain('const target = stack[stack.length - 2];');
+  });
+
+  it('openEdit 复用进行中的草稿会话（同 id 编辑 / 新建），不重新挂载', () => {
+    expect(app).toContain("prev.mode === 'edit' && prev.report.id === report.id");
+    expect(app).toContain("report === null && prev.mode === 'new'");
+    // 复用后仍 push reportEdit 路由以重新展示
+    expect(s(app, "push({ name: 'reportEdit', report })")).toBe(true);
   });
 
   it('保存成功且返回目标为详情页：用 db.reports.get 重载最新报告', () => {
@@ -78,5 +87,15 @@ describe('tab 切换清空栈回到根', () => {
     expect(app).toContain('onClick={() => switchTab(t.key)}');
     // activeTab 把 reportDetail/reportEdit 归入 reports
     expect(app).toContain("current.name === 'reportDetail' || current.name === 'reportEdit'");
+  });
+
+  it('切回 reports 且存在进行中编辑/新建草稿：恢复为报告根 + reportEdit，编辑/返回语义保留', () => {
+    // 编辑中切走再切回 reports，开关 Tab 应把用户带回正在编辑的草稿（报告根 + reportEdit 子栈）
+    expect(app).toContain("if (t === 'reports' && editSession) {");
+    expect(app).toContain("{ name: 'reports' },");
+    expect(app).toContain("{ name: 'reportEdit', report: editSession.mode === 'new' ? null : editSession.report },");
+    // 保存/取消仍 pop 返回上一页，会话随之清空（详情来源返回语义不被破坏）
+    expect(app).toContain('setEditSession(null);');
+    expect(app).toContain('pop();');
   });
 });

@@ -81,11 +81,11 @@ export function MiniLineChart({ data, unit, height = 200, width = 560 }: Props) 
         );
       })}
       {coords.length > 1 && (
-        <path d={path} fill="none" stroke="#7398c0" strokeWidth="2" strokeLinejoin="round" />
+        <path d={path} fill="none" stroke="#2f6db8" strokeWidth="2.2" strokeLinejoin="round" />
       )}
       {coords.map((c, i) => (
         <g key={i}>
-          <circle cx={c.x} cy={c.y} r="4" fill="#7398c0" stroke="#fff" strokeWidth="1.5" />
+          <circle cx={c.x} cy={c.y} r="4" fill="#2f6db8" stroke="#fff" strokeWidth="1.5" />
           <text
             x={c.x}
             y={c.y - 9}

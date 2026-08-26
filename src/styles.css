@@ -1,26 +1,26 @@
 /* 家庭体检档案 — 全局样式（本地优先 PWA，仅存本机） */
 :root {
-  /* 品牌强调色：现代克制的雾蓝 / 灰蓝（轻、柔、透气），低饱和、轻阴影、不刺眼 */
-  --blue: #7398c0; /* 主强调：边框/焦点/图表线/图标强调 */
-  --blue-dark: #5d82a9; /* 深一档柔和蓝：强调文字/数值/悬停 */
-  --blue-deep: #4a6b8e; /* 深柔和蓝：激活态文字（非纯黑） */
-  --blue-light: #e9f1fb; /* 浅蓝：浅色底色 / 强调（提亮） */
-  --blue-tint: #f3f8fd; /* 极浅底纹：focus ring / 悬停（提亮） */
-  --blue-btn: #5679a3; /* 主按钮底：白字对比充分（≥4.5:1） */
-  --blue-btn-hover: #4b6b94; /* 主按钮悬停：更深一档 */
+  /* 品牌强调色：清亮克制的活力蓝（浅色、现代、专业），适度饱和、层次分明、不刺眼 */
+  --blue: #3b82d4; /* 主强调：边框/焦点/图表线/图标强调（更饱和的辨识蓝） */
+  --blue-dark: #2f6bb9; /* 深一档柔和蓝：强调文字/数值/悬停 */
+  --blue-deep: #255aa4; /* 深柔和蓝：激活态文字（非纯黑） */
+  --blue-light: #dceafa; /* 浅蓝：浅色底色 / 强调 */
+  --blue-tint: #eaf2fc; /* 极浅底纹：focus ring / 悬停 */
+  --blue-btn: #2f6db8; /* 主按钮底：白字对比充分（≥4.5:1） */
+  --blue-btn-hover: #275a9b; /* 主按钮悬停：更深一档 */
   --graphite: #0b1620; /* 保留备用深色（不再用于顶部导航） */
 
-  /* 中性色：更柔和现代的描边与灰阶，正文用柔和墨蓝灰而非纯黑 */
-  --ink: #2a3750;
-  --ink-soft: #3b4a63;
-  --muted: #64748b;
-  --muted-soft: #94a3b8;
-  --line: #e6eaf1;
-  --line-soft: #eef2f7;
+  /* 中性色：正文用微软蓝灰（比纯灰更显层级、不单调）；描边带一丝蓝相 */
+  --ink: #26344e;
+  --ink-soft: #384962;
+  --muted: #5e6f87;
+  --muted-soft: #8b9bb1;
+  --line: #dde5f0;
+  --line-soft: #e9eef6;
 
-  /* 背景与表面 */
-  --bg: #f5f7fa;
-  --bg-soft: #f8fafc;
+  /* 背景与表面：微微泛蓝的干净底，贴合浅色主题 */
+  --bg: #f1f6fc;
+  --bg-soft: #f7fafd;
   --card: #fff;
 
   /* 状态色（更明快的现代语义色） */
@@ -198,6 +198,23 @@ a,
   max-width: 1080px;
   margin: 0 auto;
   padding: 16px;
+}
+
+/* ---------- 报告编辑/新建持久层（keep-alive） ---------- */
+/* 切换一级导航时 editor 组件不被卸载，仅用 display:none 隐藏，草稿（表单/步骤/
+   识别结果/检查项目/附件）得以保留；当前路由为 reportEdit 时正常显示。 */
+.editor-layer {
+  width: 100%;
+}
+.editor-hidden {
+  display: none;
+}
+
+/* 图标辨识度：主视觉图标（品牌 logo / 主导航 / 概览统计卡）适度加粗，强化识别 */
+.logo svg,
+.tab-icon svg,
+.stat-icon svg {
+  stroke-width: 2.1;
 }
 
 .page-head {
@@ -482,7 +499,7 @@ a,
   border: none;
   border-radius: 6px;
   background: transparent;
-  color: var(--accent, #7398c0);
+  color: var(--accent, #3b82d4);
   text-align: left;
   cursor: pointer;
 }
@@ -1361,7 +1378,7 @@ a,
   width: 16px;
   height: 16px;
   border: 2px solid #c3d4e6;
-  border-top-color: var(--blue, #7398c0);
+  border-top-color: var(--blue, #3b82d4);
   border-radius: 50%;
   animation: recog-spin 0.8s linear infinite;
 }
@@ -1400,7 +1417,7 @@ a,
 }
 .ocr-progress-bar {
   height: 100%;
-  background: var(--blue, #7398c0);
+  background: var(--blue, #3b82d4);
   border-radius: 4px;
   transition: width 0.2s ease;
 }

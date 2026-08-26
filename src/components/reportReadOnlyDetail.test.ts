@@ -66,7 +66,7 @@ describe('只读详情视图无保存/删除/修改入口，但提供编辑入�
     expect(detail).toContain('onEdit?: (report: Report) => void;');
     expect(detail).toContain('onClick={() => onEdit(report)}');
     expect(detail).toContain('编辑');
-    expect(s(app, "onEdit={(r) => push({ name: 'reportEdit', report: r })}")).toBe(true);
+    expect(s(app, "onEdit={(r) => openEdit(r)}")).toBe(true);
   });
 
   it('只读视图提供明确的返回操作', () => {
@@ -111,7 +111,7 @@ describe('列表查看/编辑入口仍为可编辑（仅趋势「查看报告」
 
   it('App 报告列表编辑仍走 ReportReview（不因只读改造改变列表编辑路径）', () => {
     expect(app).toContain('<ReportReview');
-    expect(app).toContain('editingReport={current.report}');
-    expect(s(app, "onEdit={(r) => push({ name: 'reportEdit', report: r })}")).toBe(true);
+    expect(app).toContain('editingReport={editSession.report}');
+    expect(s(app, "onEdit={(r) => openEdit(r)}")).toBe(true);
   });
 });
