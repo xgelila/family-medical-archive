@@ -1,16 +1,18 @@
 /* 家庭体检档案 — 全局样式（本地优先 PWA，仅存本机） */
 :root {
-  /* 品牌强调色：现代克制的 slate/cornflower blue，低饱和、轻阴影、不刺眼 */
-  --blue: #5a7fa8; /* 主强调（主按钮/链接/图表线/激活态） */
-  --blue-dark: #48658a; /* 深一档柔和蓝：强调文字/数值/悬停 */
-  --blue-deep: #36526e; /* 深柔和蓝：徽标/深色强调（非纯黑） */
-  --blue-light: #e3ebf5; /* 浅蓝：浅色底色 / 强调 */
-  --blue-tint: #eef3f9; /* 极浅底纹：focus ring / 悬停 */
-  --graphite: #24324a; /* 深蓝灰：头部/徽标等（带轻微蓝相，非纯黑） */
+  /* 品牌强调色：现代克制的雾蓝 / 灰蓝（轻、柔、透气），低饱和、轻阴影、不刺眼 */
+  --blue: #7398c0; /* 主强调：边框/焦点/图表线/图标强调 */
+  --blue-dark: #5d82a9; /* 深一档柔和蓝：强调文字/数值/悬停 */
+  --blue-deep: #4a6b8e; /* 深柔和蓝：激活态文字（非纯黑） */
+  --blue-light: #e9f1fb; /* 浅蓝：浅色底色 / 强调（提亮） */
+  --blue-tint: #f3f8fd; /* 极浅底纹：focus ring / 悬停（提亮） */
+  --blue-btn: #5679a3; /* 主按钮底：白字对比充分（≥4.5:1） */
+  --blue-btn-hover: #4b6b94; /* 主按钮悬停：更深一档 */
+  --graphite: #0b1620; /* 保留备用深色（不再用于顶部导航） */
 
-  /* 中性色：更柔和现代的描边与灰阶 */
-  --ink: #0f172a;
-  --ink-soft: #334155;
+  /* 中性色：更柔和现代的描边与灰阶，正文用柔和墨蓝灰而非纯黑 */
+  --ink: #2a3750;
+  --ink-soft: #3b4a63;
   --muted: #64748b;
   --muted-soft: #94a3b8;
   --line: #e6eaf1;
@@ -102,11 +104,14 @@ a,
   position: sticky;
   top: 0;
   z-index: 20;
-  background: var(--graphite);
-  color: #fff;
+  /* 顶部导航：浅色半透明白 + 毛玻璃，正文用深蓝灰，不再使用深色石墨蓝 */
+  background: rgba(255, 255, 255, 0.72);
+  -webkit-backdrop-filter: blur(14px) saturate(1.15);
+  backdrop-filter: blur(14px) saturate(1.15);
+  color: var(--ink);
   padding: 12px 16px;
-  box-shadow: 0 2px 12px rgba(15, 23, 42, 0.12);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 1px 2px rgba(21, 32, 51, 0.04), 0 8px 24px rgba(21, 32, 51, 0.05);
+  border-bottom: 1px solid var(--line-soft);
 }
 
 .app-title {
@@ -142,9 +147,9 @@ a,
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  border: none;
-  background: rgba(255, 255, 255, 0.12);
-  color: #fff;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ink-soft);
   padding: 7px 12px;
   border-radius: 8px;
   cursor: pointer;
@@ -152,14 +157,16 @@ a,
 }
 
 .tab-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--blue-tint);
+  color: var(--blue-dark);
 }
 
 .tab-btn.tab-active {
   background: #fff;
+  border-color: var(--line);
   color: var(--blue-deep);
   font-weight: 600;
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
+  box-shadow: 0 1px 2px rgba(21, 32, 51, 0.05), 0 4px 12px rgba(21, 32, 51, 0.06);
 }
 
 /* ---------- 提示条 ---------- */
@@ -272,17 +279,17 @@ a,
 }
 
 .btn-primary {
-  background: var(--blue);
-  border-color: var(--blue);
+  background: var(--blue-btn);
+  border-color: var(--blue-btn);
   color: #fff;
-  box-shadow: 0 6px 16px -8px rgba(90, 127, 168, 0.5);
+  box-shadow: 0 6px 16px -8px rgba(115, 152, 192, 0.5);
 }
 
 .btn-primary:hover {
-  background: var(--blue-dark);
-  border-color: var(--blue-dark);
+  background: var(--blue-btn-hover);
+  border-color: var(--blue-btn-hover);
   color: #fff;
-  box-shadow: 0 8px 20px -8px rgba(90, 127, 168, 0.55);
+  box-shadow: 0 8px 20px -8px rgba(115, 152, 192, 0.55);
 }
 
 .btn-danger {
@@ -475,7 +482,7 @@ a,
   border: none;
   border-radius: 6px;
   background: transparent;
-  color: var(--accent, #5a7fa8);
+  color: var(--accent, #7398c0);
   text-align: left;
   cursor: pointer;
 }
@@ -1348,13 +1355,13 @@ a,
   align-items: center;
   gap: 8px;
   font-size: 13px;
-  color: var(--blue-dark, #48658a);
+  color: var(--blue-dark, #5d82a9);
 }
 .recog-stage .spinner {
   width: 16px;
   height: 16px;
   border: 2px solid #c3d4e6;
-  border-top-color: var(--blue, #5a7fa8);
+  border-top-color: var(--blue, #7398c0);
   border-radius: 50%;
   animation: recog-spin 0.8s linear infinite;
 }
@@ -1393,7 +1400,7 @@ a,
 }
 .ocr-progress-bar {
   height: 100%;
-  background: var(--blue, #5a7fa8);
+  background: var(--blue, #7398c0);
   border-radius: 4px;
   transition: width 0.2s ease;
 }
@@ -2088,7 +2095,7 @@ input:focus-visible,
 .entry-primary:hover,
 .entry-secondary:hover {
   border-color: var(--blue);
-  box-shadow: 0 2px 6px rgba(90, 127, 168, 0.12);
+  box-shadow: 0 2px 6px rgba(115, 152, 192, 0.12);
 }
 
 .entry-secondary {
@@ -2264,7 +2271,7 @@ input:focus-visible,
 
 .entry-primary-main {
   border-width: 2px;
-  box-shadow: 0 10px 24px rgba(90, 127, 168, 0.14);
+  box-shadow: 0 10px 24px rgba(115, 152, 192, 0.14);
 }
 .entry-chevron {
   margin-left: auto;
@@ -2396,7 +2403,7 @@ input:focus-visible,
   border: none;
   padding: 4px 0;
   font-size: 13px;
-  color: var(--blue-dark, #48658a);
+  color: var(--blue-dark, #5d82a9);
   cursor: pointer;
   text-decoration: underline;
   text-underline-offset: 2px;

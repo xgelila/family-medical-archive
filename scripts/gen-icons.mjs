@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = join(root, 'public', 'icons');
-const BRAND = [90, 127, 168, 255]; // #5a7fa8 柔和 slate/cornflower 蓝
+const BRAND = [115, 152, 192, 255]; // #7398c0 柔和雾蓝/灰蓝
 
 function crc32(buf) {
   const table = [];
