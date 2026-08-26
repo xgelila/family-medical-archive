@@ -37,9 +37,9 @@ describe('请求侧：报告结构 schema 明确包含 testPurpose 字段', () =
 
 describe('请求侧：提示词明确要求每张整张报告必填检验目的（看不出填空字符串）', () => {
   it('整张报告提示词声明 testPurpose 为必填并解释中文语义「检验目的」', () => {
-    expect(REPORT_STRUCTURE_SYSTEM_PROMPT).toContain('testPurpose=检验目的');
-    expect(REPORT_STRUCTURE_SYSTEM_PROMPT).toContain('必填');
-    expect(REPORT_STRUCTURE_SYSTEM_PROMPT).toContain('严禁编造');
+    expect(REPORT_STRUCTURE_SYSTEM_PROMPT).toContain('testPurpose (检验目的)');
+    expect(REPORT_STRUCTURE_SYSTEM_PROMPT).toContain('required in the schema');
+    expect(REPORT_STRUCTURE_SYSTEM_PROMPT).toContain('Never invent it');
   });
 
   it('「检验目的」是中文语义（检验/送检/检查目的），非项目名称', () => {

@@ -164,7 +164,7 @@ describe('buildUpstreamPayload（上游请求体构造）', () => {
       }),
     ) as { messages: Array<{ role: string; content: string }> };
     const sys = body.messages[0].content;
-    expect(sys).toContain('从文字中识别出检查单的所有检查项目和各个字段值，生成结构化数据');
+    expect(sys).toContain('Extract all test items and field values from the report text and return structured data');
     expect(sys).not.toContain('受控目录候选');
     expect(sys).not.toContain('recommendedLabelId');
     expect(sys).not.toContain('recommendedLabel');
