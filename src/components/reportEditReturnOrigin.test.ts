@@ -37,7 +37,8 @@ describe('统一导航栈（Route[] + push/pop）替代平铺状态', () => {
   it('列表 onCreate/onEdit 经 openEdit 进入编辑（建立持久会话 + push 路由 reportEdit）', () => {
     expect(s(app, "onCreate={() => openEdit(null)}")).toBe(true);
     expect(s(app, "onEdit={(r) => openEdit(r)}")).toBe(true);
-    expect(s(app, "onView={(r) => push({ name: 'reportDetail', report: r })}")).toBe(true);
+    expect(app).toContain("const route = { name: 'reportDetail' as const, report: r };");
+    expect(app).toContain('setReportsSubroute(route);');
   });
 
   it('详情 onClose 返回上一页（pop），onEdit 经 openEdit 进入编辑（push）', () => {
@@ -73,7 +74,8 @@ describe('closeReportForm：保存/取消返回上一页，保存后刷新返回
   });
 
   it('趋势 gotoReport 也是 push（进入详情，返回 pop 回到趋势且筛选状态保留）', () => {
-    expect(s(app, "gotoReport={(r) => push({ name: 'reportDetail', report: r })}")).toBe(true);
+    expect(app).toContain("gotoReport={(r) => {");
+    expect(app).toContain("const route = { name: 'reportDetail' as const, report: r };");
     // 趋势筛选状态提升到 App 层（受控），栈 pop 回趋势时状态不丢
     expect(app).toContain('const [trendFilter, setTrendFilter] = useState');
     expect(app).toContain('memberId={trendFilter.memberId}');

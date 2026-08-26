@@ -69,6 +69,9 @@ export default function App() {
 
   // 报告编辑/新建草稿会话（App 层持久的 keep-alive 标识；切换 Tab 不被清空）。
   const [editSession, setEditSession] = useState<EditSession | null>(null);
+  const [reportsSubroute, setReportsSubroute] = useState<
+    { name: 'reportDetail'; report: Report } | { name: 'reportEdit'; report: Report | null } | null
+  >(null);
 
   /** 一级导航切换：把导航栈复位到该 tab 根。
    *  若进行中的编辑/新建草稿会话存在且目标是 reports，则恢复到
@@ -82,11 +85,13 @@ export default function App() {
           { name: 'reports' },
           { name: 'reportEdit', report: editSession.mode === 'new' ? null : editSession.report },
         ]);
+      } else if (t === 'reports' && reportsSubroute) {
+        setStack([{ name: 'reports' }, reportsSubroute]);
       } else {
         setStack([{ name: t } as Route]);
       }
     },
-    [editSession],
+    [editSession, reportsSubroute],
   );
 
   /** 进入/恢复报告编辑或新建（report=null 表示新建）。
@@ -103,6 +108,7 @@ export default function App() {
         }
         return report === null ? { mode: 'new' } : { mode: 'edit', report };
       });
+      setReportsSubroute({ name: 'reportEdit', report });
       if (opts?.freshRoot) setStack([{ name: 'reports' }, { name: 'reportEdit', report }]);
       else push({ name: 'reportEdit', report });
     },
@@ -112,6 +118,7 @@ export default function App() {
   /** 显式取消编辑器：清空草稿会话并返回上一页（取消即丢弃草稿，不保留）。 */
   const cancelEdit = useCallback(() => {
     setEditSession(null);
+    setReportsSubroute(null);
     pop();
   }, [pop]);
 
@@ -172,6 +179,8 @@ export default function App() {
   const closeReportForm = async (saved: boolean) => {
     setEditSession(null); // 保存成功或取消都代表本次草稿会话结束，编辑器随之卸载
     const target = stack[stack.length - 2];
+    if (target?.name === 'reportDetail') setReportsSubroute(target);
+    else setReportsSubroute(null);
     if (saved) {
       bump();
       if (target?.name === 'reportDetail') {
@@ -261,7 +270,11 @@ export default function App() {
               bump={bump}
               onCreate={() => openEdit(null)}
               onEdit={(r) => openEdit(r)}
-              onView={(r) => push({ name: 'reportDetail', report: r })}
+              onView={(r) => {
+                const route = { name: 'reportDetail' as const, report: r };
+                setReportsSubroute(route);
+                push(route);
+              }}
             />
           </>
         )}
@@ -283,7 +296,11 @@ export default function App() {
             <TrendView
               refreshKey={refreshKey}
               bump={bump}
-              gotoReport={(r) => push({ name: 'reportDetail', report: r })}
+              gotoReport={(r) => {
+                const route = { name: 'reportDetail' as const, report: r };
+                setReportsSubroute(route);
+                push(route);
+              }}
               memberId={trendFilter.memberId}
               name={trendFilter.name}
               onFilterChange={(patch) => setTrendFilter((f) => ({ ...f, ...patch }))}

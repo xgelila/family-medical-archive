@@ -33,7 +33,8 @@ describe('趋势「查看报告」进入只读详情（不再进入编辑）', (
   });
 
   it('趋势「查看报告」进入只读详情：gotoReport push reportDetail，不进入编辑', () => {
-    expect(s(app, "gotoReport={(r) => push({ name: 'reportDetail', report: r })}")).toBe(true);
+    expect(app).toContain("gotoReport={(r) => {");
+    expect(app).toContain("const route = { name: 'reportDetail' as const, report: r };");
     expect(s(app, "current.name === 'reportDetail' && (<ReportDetailView")).toBe(true);
   });
 
@@ -106,7 +107,8 @@ describe('列表查看/编辑入口仍为可编辑（仅趋势「查看报告」
   it('报告列表卡片为摘要入口：点击 onView push 只读详情', () => {
     expect(manager).toContain('onView: (r: Report) => void;');
     expect(manager).toContain('onClick={() => onView(r)}');
-    expect(s(app, "onView={(r) => push({ name: 'reportDetail', report: r })}")).toBe(true);
+    expect(app).toContain("const route = { name: 'reportDetail' as const, report: r };");
+    expect(app).toContain('setReportsSubroute(route);');
   });
 
   it('App 报告列表编辑仍走 ReportReview（不因只读改造改变列表编辑路径）', () => {
