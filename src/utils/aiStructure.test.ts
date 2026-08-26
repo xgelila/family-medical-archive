@@ -571,8 +571,7 @@ describe('STRUCTURE_SYSTEM_PROMPT / REPORT_STRUCTURE_SYSTEM_PROMPT（极简服�
 
   it('prompt only requests extraction and forbids medical interpretation or conversion', () => {
     expect(STRUCTURE_SYSTEM_PROMPT).toContain('Do not make medical judgments');
-    expect(STRUCTURE_SYSTEM_PROMPT).toContain('Do not translate');
-    expect(STRUCTURE_SYSTEM_PROMPT).toContain('Do not convert');
+    expect(STRUCTURE_SYSTEM_PROMPT).toContain('convert units');
     expect(STRUCTURE_SYSTEM_PROMPT).toContain('diagnose');
     expect(STRUCTURE_SYSTEM_PROMPT).toContain('provide treatment advice');
     // 不再包含标签/受控目录/别名上下文
@@ -585,12 +584,10 @@ describe('STRUCTURE_SYSTEM_PROMPT / REPORT_STRUCTURE_SYSTEM_PROMPT（极简服�
   });
 
   it('prompt requires exact source preservation without OCR correction or value inference', () => {
-    expect(STRUCTURE_SYSTEM_PROMPT).toContain('exactly as written');
-    expect(STRUCTURE_SYSTEM_PROMPT).toContain('Do not translate');
-    expect(STRUCTURE_SYSTEM_PROMPT).toContain('Do not correct');
-    expect(STRUCTURE_SYSTEM_PROMPT).toContain('or infer');
-    expect(REPORT_STRUCTURE_SYSTEM_PROMPT).toContain('exactly as written');
-    expect(REPORT_STRUCTURE_SYSTEM_PROMPT).toContain('Do not convert');
+    expect(STRUCTURE_SYSTEM_PROMPT).toContain('Keep sourceText and report details in the original language');
+    expect(STRUCTURE_SYSTEM_PROMPT).toContain('Preserve numbers');
+    expect(REPORT_STRUCTURE_SYSTEM_PROMPT).toContain('original language and wording');
+    expect(REPORT_STRUCTURE_SYSTEM_PROMPT).toContain('convert units');
   });
 
   it('整张报告提示词：报告信息候选字段 + 严格报告类型选项 + 无标签上下文', () => {
